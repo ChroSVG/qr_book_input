@@ -1,0 +1,136 @@
+# file: backend/main.py
+from fastapi import FastAPI, Depends, HTTPException, Query, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from sqlmodel.ext.asyncio.session import AsyncSession
+from typing import List, Optional
+from pydantic import BaseModel
+import io, csv, openpyxl
+
+from database import create_db_and_tables, get_session
+from crud import create_data, get_data, get_one, get_by_qr, update_data, delete_data
+from models import Data
+
+app = FastAPI(title="QR Input API (Async)")
+
+# 🔑 CORS harus aktif sebelum definisi route
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ganti dengan ["https://192.168.8.205:3001"] kalau mau lebih aman
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class DataBase(BaseModel):
+    qr_code: str
+    name: str
+    description: str | None = None
+    extra_info: str | None = None
+
+
+class DataCreate(DataBase):
+    pass
+
+
+class Data(DataBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+class DataUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    extra_info: Optional[str] = None
+
+@app.on_event("startup")
+async def on_startup():
+    await create_db_and_tables()
+
+@app.post("/api/data/", response_model=Data)
+async def api_create(data_in: DataCreate, session: AsyncSession = Depends(get_session)):
+    existing = await get_by_qr(session, qr_code=data_in.qr_code)
+    if existing:
+        raise HTTPException(status_code=409, detail="qr_code already exists")
+    return await create_data(session, obj_in=data_in.dict())
+
+@app.get("/api/data/", response_model=List[Data])
+async def api_list(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    q: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
+):
+    items, total = await get_data(session, page=page, limit=limit, q=q)
+    return items
+
+@app.get("/api/data/{id}", response_model=Data)
+async def api_get(id: int, session: AsyncSession = Depends(get_session)):
+    obj = await get_one(session, id=id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Not found")
+    return obj
+@app.get("/api/data/qr/{qr_code}", response_model=Data)
+async def get_data_by_qr(
+    qr_code: str,
+    session: AsyncSession = Depends(get_session)
+):
+    obj = await get_by_qr(session, qr_code=qr_code)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Not found")
+    return obj
+
+
+@app.put("/api/data/{id}", response_model=Data)
+async def api_update(id: int, payload: DataUpdate, session: AsyncSession = Depends(get_session)):
+    obj = await get_one(session, id=id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Not found")
+    return await update_data(session, db_obj=obj, obj_in=payload.dict(exclude_unset=True))
+
+@app.delete("/api/data/{id}", status_code=204)
+async def api_delete(id: int, session: AsyncSession = Depends(get_session)):
+    obj = await get_one(session, id=id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Not found")
+    await delete_data(session, db_obj=obj)
+    return Response(status_code=204)
+
+@app.get("/api/data/export/csv")
+async def export_csv(session: AsyncSession = Depends(get_session)):
+    items, _ = await get_data(session, page=1, limit=10_000_000)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id", "qr_code", "name", "description", "extra_info", "created_at", "updated_at"])
+    for d in items:
+        writer.writerow([
+            d.id, d.qr_code, d.name,
+            d.description or "",
+            d.extra_info or "",
+            d.created_at.isoformat(),
+            d.updated_at.isoformat()
+        ])
+    output.seek(0)
+    headers = {"Content-Disposition": "attachment; filename=data_export.csv"}
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers=headers)
+
+@app.get("/api/data/export/excel")
+async def export_excel(session: AsyncSession = Depends(get_session)):
+    items, _ = await get_data(session, page=1, limit=10_000_000)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["id", "qr_code", "name", "description", "extra_info", "created_at", "updated_at"])
+    for d in items:
+        ws.append([
+            d.id, d.qr_code, d.name,
+            d.description or "",
+            d.extra_info or "",
+            d.created_at.isoformat(),
+            d.updated_at.isoformat()
+        ])
+    bio = io.BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+    headers = {"Content-Disposition": "attachment; filename=data_export.xlsx"}
+    return StreamingResponse(bio, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
