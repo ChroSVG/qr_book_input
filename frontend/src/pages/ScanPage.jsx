@@ -1,72 +1,61 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import QrScanner from "../components/QrScanner";
-import { createData, getData, updateAllData } from "../hooks/useApi";
-import { Toast } from "../components/Toast";
+import { useToast } from "../providers/ToastProvider";
+import { useCreateItem, useLookupItem } from "../hooks/useItems";
+import { Input, Button, Card } from "../ui";
 
 export default function ScanPage() {
+  const toast = useToast();
+  const { create, loading: creating } = useCreateItem();
+  const { lookup, loading: lookingUp } = useLookupItem();
+
   const [form, setForm] = useState({ id: null, qr: "", name: "", desc: "", extra: "" });
-  const [toast, setToast] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState("new"); // "new" | "edit"
+
   const nameInputRef = useRef(null);
   const scannerInputRef = useRef(null);
   const scanTimeoutRef = useRef(null);
 
   const processScan = useCallback(async (decoded) => {
     if (!decoded) return;
-    setForm(prev => ({ ...prev, qr: decoded }));
-    try {
-      const data = await getData(decoded);
-      if (data) {
-        setForm({
-          id: data.id,
-          qr: decoded,
-          name: data.name,
-          desc: data.description,
-          extra: data.extra_info
-        });
-        setToast({ msg: "Data ditemukan!", type: "success" });
-      }
-    } catch {
-      setToast({ msg: "Barang baru terdeteksi", type: "info" });
-      setForm({
-        id: null,
-        qr: decoded,
-        name: "",
-        desc: "",
-        extra: ""
-      });
-    }
-    // Always focus to name input after scan
-    setTimeout(() => nameInputRef.current?.focus(), 100);
-  }, []);
+    setForm((prev) => ({ ...prev, qr: decoded }));
 
-  const handleScan = useCallback(async (decoded) => {
-    await processScan(decoded);
-  }, [processScan]);
+    const existing = await lookup(decoded);
+    if (existing) {
+      setForm({
+        id: existing.id,
+        qr: decoded,
+        name: existing.name,
+        desc: existing.description ?? "",
+        extra: existing.extra_info ?? "",
+      });
+      setMode("edit");
+      toast("Item found!", { type: "success" });
+    } else {
+      setForm({ id: null, qr: decoded, name: "", desc: "", extra: "" });
+      setMode("new");
+      toast("New item detected", { type: "info" });
+    }
+
+    setTimeout(() => nameInputRef.current?.focus(), 100);
+  }, [lookup, toast]);
 
   // Focus scanner input on mount
   useEffect(() => {
-    const timer = setTimeout(() => scannerInputRef.current?.focus(), 300);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => scannerInputRef.current?.focus(), 300);
+    return () => clearTimeout(t);
   }, []);
 
-  // Handle scanner input - accept both scanner and manual keyboard
+  // Handheld scanner input (debounced)
   const handleScannerInputChange = useCallback((e) => {
     const value = e.target.value;
     if (!value) return;
+    if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
 
-    if (scanTimeoutRef.current) {
-      clearTimeout(scanTimeoutRef.current);
-    }
-
-    // Process after delay (scanner selesai kirim atau user selesai ketik)
     scanTimeoutRef.current = setTimeout(() => {
       const qrCode = value.trim();
-      if (qrCode) {
-        processScan(qrCode);
-      }
+      if (qrCode) processScan(qrCode);
       e.target.value = "";
-      // processScan will focus to name input
     }, 150);
   }, [processScan]);
 
@@ -75,90 +64,111 @@ export default function ScanPage() {
       e.preventDefault();
       const qrCode = e.target.value.trim();
       e.target.value = "";
-      if (qrCode) {
-        processScan(qrCode);
-      }
-      // processScan will focus to name input
+      if (qrCode) processScan(qrCode);
     }
   }, [processScan]);
 
   const handleSave = async (e) => {
-    if (e) e.preventDefault();
-    if (!form.qr || !form.name) return setToast({ msg: "QR & Nama wajib diisi", type: "error" });
+    e?.preventDefault();
+    if (!form.qr || !form.name) {
+      return toast("QR Code and Name are required", { type: "error" });
+    }
 
-    setLoading(true);
     try {
-      if (form.id) {
-        // Update existing data
-        await updateAllData(form.id, {
-          qr_code: form.qr,
-          name: form.name,
-          description: form.desc,
-          extra_info: form.extra
-        });
-        setToast({ msg: "Berhasil diperbarui", type: "success" });
-      } else {
-        // Create new data
-        await createData({ qr_code: form.qr, name: form.name, description: form.desc, extra_info: form.extra });
-        setToast({ msg: "Berhasil disimpan", type: "success" });
-      }
+      await create({
+        qr_code: form.qr,
+        name: form.name,
+        description: form.desc || null,
+        extra_info: form.extra || null,
+      });
+      toast("Item saved successfully", { type: "success" });
       setForm({ id: null, qr: "", name: "", desc: "", extra: "" });
-      // Focus back to scanner input after save
+      setMode("new");
       setTimeout(() => scannerInputRef.current?.focus(), 100);
-    } catch (error) {
-      console.error('Error saving data:', error);
-      setToast({ msg: "Gagal menyimpan", type: "error" });
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      const msg = err.response?.status === 409
+        ? "This QR code already exists"
+        : "Failed to save item";
+      toast(msg, { type: "error" });
     }
   };
 
+  const handleReset = () => {
+    setForm({ id: null, qr: form.qr, name: "", desc: "", extra: "" });
+    setMode("new");
+  };
+
+  const loading = creating || lookingUp;
+
   return (
-    <div className="p-6 max-w-6xl mx-auto grid lg:grid-cols-2 gap-8">
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-gray-800">Registrasi Barang</h2>
-        <div className="rounded-3xl overflow-hidden shadow-lg border-4 border-white aspect-square max-w-md mx-auto relative">
-          <QrScanner onScan={handleScan} />
-        </div>
-        <p className="text-center text-gray-500 text-sm">
-          📷 Scan dengan kamera atau gunakan scanner QR portable
-        </p>
-      </div>
-      <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 h-fit">
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* Input untuk scanner portable - klik di sini sebelum scan */}
-          <input
+    <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Scanner Panel */}
+        <div className="space-y-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Scan QR Code</h1>
+            <p className="text-sm text-gray-500 mt-1">Point your camera at a QR code or use a handheld scanner.</p>
+          </div>
+
+          <div className="aspect-square max-w-md mx-auto rounded-2xl overflow-hidden shadow-lg border-2 border-white">
+            <QrScanner onScan={processScan} />
+          </div>
+
+          {/* Handheld scanner input */}
+          <Input
             ref={scannerInputRef}
-            type="text"
+            placeholder="Or type/paste QR code here..."
             onChange={handleScannerInputChange}
             onKeyDown={handleScannerInputKeyDown}
-            className="w-full border-2 border-blue-200 p-3 rounded-xl outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
-            placeholder="📡 Klik di sini, lalu scan QR dengan scanner portable"
             autoComplete="off"
           />
-          <input value={form.qr} className="w-full bg-gray-50 border p-3 rounded-xl text-gray-400" placeholder="Kode QR" />
-          <input ref={nameInputRef} value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full border p-3 rounded-xl outline-none" placeholder="Nama Barang" />
-          <textarea value={form.desc} onChange={e => setForm({...form, desc: e.target.value})} className="w-full border p-3 rounded-xl h-24 outline-none" placeholder="Deskripsi" />
-          <input value={form.extra} onChange={e => setForm({...form, extra: e.target.value})} className="w-full border p-3 rounded-xl outline-none" placeholder="Info Tambahan" />
+        </div>
 
-          <div className="flex space-x-3">
-            <button type="submit" disabled={loading} className="flex-1 bg-blue-600 text-white p-4 rounded-xl font-bold disabled:bg-blue-300">
-              {loading ? "Menyimpan..." : form.id ? "Update Barang" : "Simpan Barang"}
-            </button>
+        {/* Form Panel */}
+        <Card className="p-6 h-fit">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            {mode === "edit" ? "Edit Item" : "New Item"}
+          </h2>
 
-            {form.id && (
-              <button
-                type="button"
-                onClick={() => setForm({ id: null, qr: form.qr, name: "", desc: "", extra: "" })}
-                className="flex-1 bg-gray-500 text-white p-4 rounded-xl font-bold hover:bg-gray-600"
-              >
-                Tambah Baru
-              </button>
-            )}
-          </div>
-        </form>
+          <form onSubmit={handleSave} className="space-y-4">
+            <Input value={form.qr} placeholder="QR Code" readOnly />
+
+            <Input
+              ref={nameInputRef}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Item name *"
+            />
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
+              <textarea
+                value={form.desc}
+                onChange={(e) => setForm({ ...form, desc: e.target.value })}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-24"
+                placeholder="Optional description"
+              />
+            </div>
+
+            <Input
+              value={form.extra}
+              onChange={(e) => setForm({ ...form, extra: e.target.value })}
+              placeholder="Extra info (optional)"
+            />
+
+            <div className="flex gap-3 pt-2">
+              <Button type="submit" loading={loading} className="flex-1">
+                {mode === "edit" ? "Update Item" : "Save Item"}
+              </Button>
+              {mode === "edit" && (
+                <Button type="button" variant="secondary" onClick={handleReset}>
+                  New
+                </Button>
+              )}
+            </div>
+          </form>
+        </Card>
       </div>
-      <Toast msg={toast?.msg} type={toast?.type} onClose={() => setToast(null)} />
     </div>
   );
 }
