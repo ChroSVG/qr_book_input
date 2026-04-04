@@ -1,4 +1,5 @@
-﻿import React, { useEffect, useState, useCallback } from "react";
+$content = @'
+import React, { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { fetchData, updateData, deleteData, exportCsv, exportExcel } from "../hooks/useApi";
 import { Toast } from "../components/Toast";
@@ -7,7 +8,7 @@ import QrScanner from "../components/QrScanner";
 
 export default function TablePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-
+  
   const [items, setItems] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -114,12 +115,7 @@ export default function TablePage() {
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
-          <input
-            value={q}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Cari nama barang atau kode..."
-            className="w-full border-gray-200 border p-4 pl-12 pr-14 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none shadow-sm transition-all bg-white text-gray-700"
-          />
+          <input value={q} onChange={(e) => handleSearchChange(e.target.value)} placeholder="Cari nama barang atau kode..." className="w-full border-gray-200 border p-4 pl-12 pr-14 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none shadow-sm transition-all bg-white text-gray-700" />
           <button onClick={() => setIsModalOpen(true)} className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all group">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
           </button>
@@ -143,8 +139,12 @@ export default function TablePage() {
       </div>
 
       {/* Modal & Toast */}
-      {isModalOpen && (<div className="fixed inset-0 z-50 flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={() => setIsModalOpen(false)} /><div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl relative z-10"><div className="p-6 flex justify-between items-center border-b"><span className="font-bold text-lg">Scan Filter</span><button onClick={() => setIsModalOpen(false)} className="bg-gray-100 p-2 rounded-full text-gray-400">âœ•</button></div><div className="aspect-square"><QrScanner onScan={handleQrScan} /></div></div></div>)}
+      {isModalOpen && (<div className="fixed inset-0 z-50 flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={() => setIsModalOpen(false)} /><div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl relative z-10"><div className="p-6 flex justify-between items-center border-b"><span className="font-bold text-lg">Scan Filter</span><button onClick={() => setIsModalOpen(false)} className="bg-gray-100 p-2 rounded-full text-gray-400">✕</button></div><div className="aspect-square"><QrScanner onScan={handleQrScan} /></div></div></div>)}
       <Toast msg={toast?.msg} type={toast?.type} onClose={() => setToast(null)} />
     </div>
   );
 }
+'@
+
+Set-Content -Path "C:\Users\HP\Desktop\input-qr-gpt-20260129T092154Z-3-001\input-qr-gpt\frontend\src\pages\TablePage.jsx" -Value $content -Encoding UTF8
+Write-Host "File updated successfully!"

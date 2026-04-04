@@ -1,5 +1,5 @@
 # file: backend/crud.py
-from sqlmodel import select
+from sqlmodel import select, func
 from sqlmodel.ext.asyncio.session import AsyncSession
 from models import Data
 from typing import List, Optional, Tuple
@@ -17,8 +17,14 @@ async def get_data(session: AsyncSession, *, page: int =1, limit: int =10, q: Op
     if q:
         like = f"%{q}%"
         stmt = stmt.where((Data.qr_code.ilike(like)) | (Data.name.ilike(like)))
-    total = (await session.exec(stmt)).all()
-    total_count = len(total)
+    
+    # Get total count first
+    count_stmt = select(func.count()).select_from(Data)
+    if q:
+        count_stmt = count_stmt.where((Data.qr_code.ilike(like)) | (Data.name.ilike(like)))
+    total_count = (await session.exec(count_stmt)).one()
+    
+    # Then get paginated results
     stmt = stmt.offset((page-1)*limit).limit(limit)
     items = (await session.exec(stmt)).all()
     return items, total_count

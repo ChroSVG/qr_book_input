@@ -9,7 +9,7 @@ import io, csv, openpyxl
 
 from database import create_db_and_tables, get_session
 from crud import create_data, get_data, get_one, get_by_qr, update_data, delete_data
-from models import Data as DataModel
+from models import Data
 
 app = FastAPI(title="QR Input API (Async)")
 
@@ -22,13 +22,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class DataListResponse(BaseModel):
-    data: List[DataModel]
-    total: int
-    page: int
-    limit: int
-    total_pages: int
-
 class DataBase(BaseModel):
     qr_code: str
     name: str
@@ -40,7 +33,7 @@ class DataCreate(DataBase):
     pass
 
 
-class DataResponse(DataBase):
+class Data(DataBase):
     id: int
 
     class Config:
@@ -55,14 +48,14 @@ class DataUpdate(BaseModel):
 async def on_startup():
     await create_db_and_tables()
 
-@app.post("/api/data/", response_model=DataResponse)
+@app.post("/api/data/", response_model=Data)
 async def api_create(data_in: DataCreate, session: AsyncSession = Depends(get_session)):
     existing = await get_by_qr(session, qr_code=data_in.qr_code)
     if existing:
         raise HTTPException(status_code=409, detail="qr_code already exists")
     return await create_data(session, obj_in=data_in.dict())
 
-@app.get("/api/data/", response_model=DataListResponse)
+@app.get("/api/data/", response_model=List[Data])
 async def api_list(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
@@ -70,21 +63,15 @@ async def api_list(
     session: AsyncSession = Depends(get_session),
 ):
     items, total = await get_data(session, page=page, limit=limit, q=q)
-    return {
-        "data": items,
-        "total": total,
-        "page": page,
-        "limit": limit,
-        "total_pages": (total + limit - 1) // limit
-    }
+    return items
 
-@app.get("/api/data/{id}", response_model=DataResponse)
+@app.get("/api/data/{id}", response_model=Data)
 async def api_get(id: int, session: AsyncSession = Depends(get_session)):
     obj = await get_one(session, id=id)
     if not obj:
         raise HTTPException(status_code=404, detail="Not found")
     return obj
-@app.get("/api/data/qr/{qr_code}", response_model=DataResponse)
+@app.get("/api/data/qr/{qr_code}", response_model=Data)
 async def get_data_by_qr(
     qr_code: str,
     session: AsyncSession = Depends(get_session)
@@ -95,7 +82,7 @@ async def get_data_by_qr(
     return obj
 
 
-@app.put("/api/data/{id}", response_model=DataResponse)
+@app.put("/api/data/{id}", response_model=Data)
 async def api_update(id: int, payload: DataUpdate, session: AsyncSession = Depends(get_session)):
     obj = await get_one(session, id=id)
     if not obj:
@@ -124,12 +111,9 @@ async def export_csv(session: AsyncSession = Depends(get_session)):
             d.created_at.isoformat(),
             d.updated_at.isoformat()
         ])
-    # Encode ke UTF-8 bytes dengan BOM
-    csv_bytes = ("\ufeff" + output.getvalue()).encode("utf-8")
-    headers = {
-        "Content-Disposition": "attachment; filename=data_export.csv"
-    }
-    return StreamingResponse(iter([csv_bytes]), media_type="text/csv; charset=utf-8", headers=headers)
+    output.seek(0)
+    headers = {"Content-Disposition": "attachment; filename=data_export.csv"}
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers=headers)
 
 @app.get("/api/data/export/excel")
 async def export_excel(session: AsyncSession = Depends(get_session)):
@@ -148,51 +132,9 @@ async def export_excel(session: AsyncSession = Depends(get_session)):
     bio = io.BytesIO()
     wb.save(bio)
     bio.seek(0)
-    headers = {
-        "Content-Disposition": "attachment; filename=data_export.xlsx",
-        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8"
-    }
+    headers = {"Content-Disposition": "attachment; filename=data_export.xlsx"}
     return StreamingResponse(bio, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
 
 
 if __name__ == '__main__':
-    import uvicorn
-    import os
-    
-    # Cek apakah kita ingin menggunakan SSL
-    ssl_keyfile = os.getenv("SSL_KEYFILE")
-    ssl_certfile = os.getenv("SSL_CERTFILE")
-    
-    if ssl_keyfile and ssl_certfile:
-        uvicorn.run(
-            app, 
-            host="0.0.0.0", 
-            port=8000,
-            ssl_keyfile=ssl_keyfile,
-            ssl_certfile=ssl_certfile
-        )
-    else:
-        uvicorn.run(app, host="0.0.0.0", port=8000)
-
-
-from fastapi import Request
-from fastapi.responses import HTMLResponse
-
-# Handle SPA routes - kembalikan index.html untuk semua rute non-API
-@app.get("/{full_path:path}")
-async def serve_spa(request: Request, full_path: str):
-    import os
-    # Jika path adalah API, jangan tangani di sini
-    if full_path.startswith("api/"):
-        # Biarkan FastAPI menangani kesalahan 404 untuk API
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Not Found")
-
-    # Kembalikan index.html untuk semua rute non-API (untuk client-side routing)
-    index_path = os.path.join("dist", "index.html")
-    if os.path.exists(index_path):
-        with open(index_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        return HTMLResponse(content=content)
-    else:
-        raise HTTPException(status_code=404, detail="Index file not found")
+    app.run()

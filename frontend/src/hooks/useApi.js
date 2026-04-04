@@ -12,16 +12,28 @@ export async function getData(qr) {
   return resp.data;
 }
 
+// Fungsi untuk mendapatkan data lengkap berdasarkan QR code (termasuk ID)
+export async function getDataByQr(qr) {
+  const resp = await axios.get(`${API_BASE}/api/data/qr/${qr}`);
+  return resp.data; // Endpoint ini seharusnya mengembalikan data lengkap termasuk ID
+}
+
 export async function fetchData({page=1, limit=10, q=""} = {}) {
   const resp = await axios.get(`${API_BASE}/api/data/`, {
     params: { page, limit, q }
   });
-  return resp.data; // Mengasumsikan response berisi { data: [...], total: 100 }
+  return resp.data; // Returns { data: [...], total, page, limit, total_pages }
 }
 
 export async function updateData(id, field, value) {
   // Menyesuaikan dengan kebutuhan update satu field
   const resp = await axios.put(`${API_BASE}/api/data/${id}`, { [field]: value });
+  return resp.data;
+}
+
+// Fungsi untuk mengupdate seluruh data
+export async function updateAllData(id, payload) {
+  const resp = await axios.put(`${API_BASE}/api/data/${id}`, payload);
   return resp.data;
 }
 

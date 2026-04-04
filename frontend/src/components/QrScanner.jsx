@@ -21,7 +21,10 @@ export default function QrScanner({ onScan, facingMode = "environment", onError 
             aspectRatio: 1.0 
           },
           (decoded) => {
-            if (isMounted) onScan(decoded);
+            console.log("QR Scanned:", decoded);
+            // decoded bisa berupa string atau objek dengan properti decodedText
+            const result = typeof decoded === 'string' ? decoded : (decoded.decodedText || decoded.text || '');
+            if (isMounted && result) onScan(result);
           }
         );
       } catch (err) {
