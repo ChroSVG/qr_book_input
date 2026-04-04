@@ -1,198 +1,75 @@
-# file: backend/main.py
-from fastapi import FastAPI, Depends, HTTPException, Query, Response
+"""FastAPI application entry point."""
+
+import os
+import sys
+
+# Ensure the backend directory is on sys.path so local imports work
+sys.path.insert(0, os.path.dirname(__file__))
+
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from sqlmodel.ext.asyncio.session import AsyncSession
-from typing import List, Optional
-from pydantic import BaseModel
-import io, csv, openpyxl
+import uvicorn
 
-from database import create_db_and_tables, get_session
-from crud import create_data, get_data, get_one, get_by_qr, update_data, delete_data
-from models import Data as DataModel
-
-app = FastAPI(title="QR Input API (Async)")
-
-# 🔑 CORS harus aktif sebelum definisi route
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # ganti dengan ["https://192.168.8.205:3001"] kalau mau lebih aman
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-class DataListResponse(BaseModel):
-    data: List[DataModel]
-    total: int
-    page: int
-    limit: int
-    total_pages: int
-
-class DataBase(BaseModel):
-    qr_code: str
-    name: str
-    description: str | None = None
-    extra_info: str | None = None
+from config import settings
+from database import create_db_and_tables
+from routers import items_router, export_router, spa_router
+from error_handlers import register_error_handlers
 
 
-class DataCreate(DataBase):
-    pass
-
-
-class DataResponse(DataBase):
-    id: int
-
-    class Config:
-        from_attributes = True
-
-class DataUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    extra_info: Optional[str] = None
-
-@app.on_event("startup")
-async def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan — runs on startup and shutdown."""
     await create_db_and_tables()
-
-@app.post("/api/data/", response_model=DataResponse)
-async def api_create(data_in: DataCreate, session: AsyncSession = Depends(get_session)):
-    existing = await get_by_qr(session, qr_code=data_in.qr_code)
-    if existing:
-        raise HTTPException(status_code=409, detail="qr_code already exists")
-    return await create_data(session, obj_in=data_in.dict())
-
-@app.get("/api/data/", response_model=DataListResponse)
-async def api_list(
-    page: int = Query(1, ge=1),
-    limit: int = Query(10, ge=1, le=100),
-    q: Optional[str] = None,
-    session: AsyncSession = Depends(get_session),
-):
-    items, total = await get_data(session, page=page, limit=limit, q=q)
-    return {
-        "data": items,
-        "total": total,
-        "page": page,
-        "limit": limit,
-        "total_pages": (total + limit - 1) // limit
-    }
-
-@app.get("/api/data/{id}", response_model=DataResponse)
-async def api_get(id: int, session: AsyncSession = Depends(get_session)):
-    obj = await get_one(session, id=id)
-    if not obj:
-        raise HTTPException(status_code=404, detail="Not found")
-    return obj
-@app.get("/api/data/qr/{qr_code}", response_model=DataResponse)
-async def get_data_by_qr(
-    qr_code: str,
-    session: AsyncSession = Depends(get_session)
-):
-    obj = await get_by_qr(session, qr_code=qr_code)
-    if not obj:
-        raise HTTPException(status_code=404, detail="Not found")
-    return obj
+    yield
 
 
-@app.put("/api/data/{id}", response_model=DataResponse)
-async def api_update(id: int, payload: DataUpdate, session: AsyncSession = Depends(get_session)):
-    obj = await get_one(session, id=id)
-    if not obj:
-        raise HTTPException(status_code=404, detail="Not found")
-    return await update_data(session, db_obj=obj, obj_in=payload.dict(exclude_unset=True))
+def create_app() -> FastAPI:
+    """Application factory."""
 
-@app.delete("/api/data/{id}", status_code=204)
-async def api_delete(id: int, session: AsyncSession = Depends(get_session)):
-    obj = await get_one(session, id=id)
-    if not obj:
-        raise HTTPException(status_code=404, detail="Not found")
-    await delete_data(session, db_obj=obj)
-    return Response(status_code=204)
+    app = FastAPI(
+        title="QR Input API",
+        description="Inventory management system with QR code scanning.",
+        version="2.0.0",
+        lifespan=lifespan,
+    )
 
-@app.get("/api/data/export/csv")
-async def export_csv(session: AsyncSession = Depends(get_session)):
-    items, _ = await get_data(session, page=1, limit=10_000_000)
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["id", "qr_code", "name", "description", "extra_info", "created_at", "updated_at"])
-    for d in items:
-        writer.writerow([
-            d.id, d.qr_code, d.name,
-            d.description or "",
-            d.extra_info or "",
-            d.created_at.isoformat(),
-            d.updated_at.isoformat()
-        ])
-    # Encode ke UTF-8 bytes dengan BOM
-    csv_bytes = ("\ufeff" + output.getvalue()).encode("utf-8")
-    headers = {
-        "Content-Disposition": "attachment; filename=data_export.csv"
-    }
-    return StreamingResponse(iter([csv_bytes]), media_type="text/csv; charset=utf-8", headers=headers)
+    # ── CORS ───────────────────────────────────────────────────────────
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=settings.cors_allow_credentials,
+        allow_methods=settings.cors_allow_methods,
+        allow_headers=settings.cors_allow_headers,
+    )
 
-@app.get("/api/data/export/excel")
-async def export_excel(session: AsyncSession = Depends(get_session)):
-    items, _ = await get_data(session, page=1, limit=10_000_000)
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.append(["id", "qr_code", "name", "description", "extra_info", "created_at", "updated_at"])
-    for d in items:
-        ws.append([
-            d.id, d.qr_code, d.name,
-            d.description or "",
-            d.extra_info or "",
-            d.created_at.isoformat(),
-            d.updated_at.isoformat()
-        ])
-    bio = io.BytesIO()
-    wb.save(bio)
-    bio.seek(0)
-    headers = {
-        "Content-Disposition": "attachment; filename=data_export.xlsx",
-        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8"
-    }
-    return StreamingResponse(bio, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
+    # ── Routes ─────────────────────────────────────────────────────────
+    app.include_router(items_router)
+    app.include_router(export_router)
+    app.include_router(spa_router)
+
+    # ── Error handlers ─────────────────────────────────────────────────
+    register_error_handlers(app)
+
+    return app
 
 
-if __name__ == '__main__':
-    import uvicorn
-    import os
-    
-    # Cek apakah kita ingin menggunakan SSL
-    ssl_keyfile = os.getenv("SSL_KEYFILE")
-    ssl_certfile = os.getenv("SSL_CERTFILE")
-    
-    if ssl_keyfile and ssl_certfile:
-        uvicorn.run(
-            app, 
-            host="0.0.0.0", 
-            port=8000,
-            ssl_keyfile=ssl_keyfile,
-            ssl_certfile=ssl_certfile
-        )
-    else:
-        uvicorn.run(app, host="0.0.0.0", port=8000)
+app = create_app()
 
 
-from fastapi import Request
-from fastapi.responses import HTMLResponse
+if __name__ == "__main__":
+    ssl_config = {}
+    if settings.ssl_keyfile and settings.ssl_certfile:
+        ssl_config = {
+            "ssl_keyfile": settings.ssl_keyfile,
+            "ssl_certfile": settings.ssl_certfile,
+        }
 
-# Handle SPA routes - kembalikan index.html untuk semua rute non-API
-@app.get("/{full_path:path}")
-async def serve_spa(request: Request, full_path: str):
-    import os
-    # Jika path adalah API, jangan tangani di sini
-    if full_path.startswith("api/"):
-        # Biarkan FastAPI menangani kesalahan 404 untuk API
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Not Found")
-
-    # Kembalikan index.html untuk semua rute non-API (untuk client-side routing)
-    index_path = os.path.join("dist", "index.html")
-    if os.path.exists(index_path):
-        with open(index_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        return HTMLResponse(content=content)
-    else:
-        raise HTTPException(status_code=404, detail="Index file not found")
+    uvicorn.run(
+        "main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=True,
+        **ssl_config,
+    )
