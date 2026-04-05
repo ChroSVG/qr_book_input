@@ -43,11 +43,15 @@ export default function EditableCell({ value, onSave }) {
       className="p-4 text-sm text-gray-700 cursor-pointer hover:bg-blue-50/30 transition-colors group"
       onDoubleClick={() => setEditing(true)}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className={!draft ? "text-gray-300 italic" : ""}>{draft || "—"}</span>
-        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold uppercase tracking-wider text-blue-500 bg-blue-100 px-2 py-0.5 rounded">
+        <button
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold uppercase tracking-wider text-blue-500 bg-blue-100 px-2 py-0.5 rounded hover:bg-blue-200 focus:outline-none focus:opacity-100 shrink-0"
+          onClick={() => setEditing(true)}
+          tabIndex={-1}
+        >
           Edit
-        </span>
+        </button>
       </div>
     </td>
   );

@@ -4,7 +4,7 @@
  */
 import axios from "axios";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE || "";
 
 const api = axios.create({
   baseURL: `${API_BASE}/api`,
@@ -71,5 +71,5 @@ export async function deleteItem(id) {
 // ── Export ─────────────────────────────────────────────────────────────────
 
 export function getExportUrl(format) {
-  return `${API_BASE}/api/data/export/${format}`;
+  return `/api/data/export/${format}`;
 }
