@@ -1,0 +1,49 @@
+# Production environment configuration
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  backend:
+    environment:
+      # Production CORS - strict, hanya domain yang diizinkan
+      - CORS_ORIGINS=["https://yourdomain.com", "https://www.yourdomain.com"]
+      - DB_ECHO=false  # Disable SQL logging untuk production
+      
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # Health check lebih strict
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/data/?page=1&limit=1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    
+    # Auto-restart policy
+    restart: always
+  
+  frontend:
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    
+    # Auto-restart policy
+    restart: always
+    
+    build:
+      args:
+        # Production API base - sesuaikan dengan domain Anda
+        VITE_API_BASE: ""

@@ -11,6 +11,7 @@ from database import get_session
 from repository import DataRepository
 from service import DataService
 from utils.export import generate_csv, generate_excel
+from auth import verify_api_key
 
 router = APIRouter(prefix="/api/data/export", tags=["export"])
 
@@ -20,9 +21,9 @@ def get_data_service(session: AsyncSession = Depends(get_session)) -> DataServic
     return DataService(DataRepository(session))
 
 
-@router.get("/csv")
+@router.get("/csv", dependencies=[Depends(verify_api_key)])
 async def export_csv(svc: DataService = Depends(get_data_service)):
-    """Export all data as CSV with UTF-8 BOM encoding."""
+    """Export all data as CSV with UTF-8 BOM encoding. Requires API key."""
     items = await svc.fetch_all_items()
     csv_bytes = generate_csv(items)
 
@@ -33,9 +34,9 @@ async def export_csv(svc: DataService = Depends(get_data_service)):
     )
 
 
-@router.get("/excel")
+@router.get("/excel", dependencies=[Depends(verify_api_key)])
 async def export_excel(svc: DataService = Depends(get_data_service)):
-    """Export all data as Excel (.xlsx)."""
+    """Export all data as Excel (.xlsx). Requires API key."""
     items = await svc.fetch_all_items()
     excel_bytes = generate_excel(items)
 

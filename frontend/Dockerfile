@@ -1,6 +1,13 @@
 # Stage 1: Build
 FROM node:22-alpine AS builder
 
+# Build arguments
+ARG VITE_API_BASE
+ARG VITE_API_KEY
+
+ENV VITE_API_BASE=${VITE_API_BASE}
+ENV VITE_API_KEY=${VITE_API_KEY}
+
 WORKDIR /app
 
 COPY package.json package-lock.json ./

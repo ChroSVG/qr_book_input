@@ -16,10 +16,24 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from main import create_app  # noqa: E402
 from database import get_session  # noqa: E402
+import auth  # noqa: E402
 
 # ── Test database setup ────────────────────────────────────────────────
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+# ── Test API Key ────────────────────────────────────────────────────────
+
+TEST_API_KEY = "test-api-key-12345"
+
+
+@pytest.fixture(autouse=True)
+def override_api_key():
+    """Override API_KEY in auth module for testing."""
+    original_key = auth.API_KEY
+    auth.API_KEY = TEST_API_KEY
+    yield TEST_API_KEY
+    auth.API_KEY = original_key
 
 
 @pytest_asyncio.fixture

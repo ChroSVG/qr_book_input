@@ -10,12 +10,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import uvicorn
 
 from config import settings
 from database import create_db_and_tables
 from routers import items_router, export_router, spa_router
 from error_handlers import register_error_handlers
+from auth import API_KEY
 
 
 @asynccontextmanager
@@ -48,6 +50,16 @@ def create_app() -> FastAPI:
     app.include_router(items_router)
     app.include_router(export_router)
     app.include_router(spa_router)
+
+    # ── Auth Info Endpoint ─────────────────────────────────────────────
+    @app.get("/api/auth/info", tags=["auth"])
+    async def auth_info():
+        """Get API authentication info (for setup purposes)."""
+        return {
+            "auth_type": "api_key",
+            "api_key": API_KEY,
+            "message": "Include this key in X-API-Key header for protected endpoints",
+        }
 
     # ── Error handlers ─────────────────────────────────────────────────
     register_error_handlers(app)

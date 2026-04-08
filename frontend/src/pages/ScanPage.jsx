@@ -11,6 +11,7 @@ export default function ScanPage() {
 
   const [form, setForm] = useState({ id: null, qr: "", name: "", desc: "", extra: "" });
   const [mode, setMode] = useState("new"); // "new" | "edit"
+  const [lastScanned, setLastScanned] = useState(""); // Track last scanned QR
 
   const nameInputRef = useRef(null);
   const scannerInputRef = useRef(null);
@@ -18,6 +19,11 @@ export default function ScanPage() {
 
   const processScan = useCallback(async (decoded) => {
     if (!decoded) return;
+    
+    // Prevent processing same QR multiple times
+    if (decoded === lastScanned) return;
+    setLastScanned(decoded);
+    
     setForm((prev) => ({ ...prev, qr: decoded }));
 
     const existing = await lookup(decoded);
@@ -38,7 +44,7 @@ export default function ScanPage() {
     }
 
     setTimeout(() => nameInputRef.current?.focus(), 100);
-  }, [lookup, toast]);
+  }, [lookup, toast, lastScanned]);
 
   // Focus scanner input on mount
   useEffect(() => {
@@ -111,8 +117,18 @@ export default function ScanPage() {
           </div>
 
           <div className="aspect-square max-w-md mx-auto rounded-2xl overflow-hidden shadow-lg border-2 border-white">
-            <QrScanner onScan={processScan} />
+            <QrScanner 
+              onScan={processScan} 
+              cooldownMs={2000}  // 2 second cooldown
+            />
           </div>
+
+          {/* Last scanned info */}
+          {lastScanned && (
+            <div className="text-xs text-center text-gray-500">
+              Last scanned: <code className="bg-gray-100 px-2 py-0.5 rounded">{lastScanned.slice(0, 20)}...</code>
+            </div>
+          )}
 
           {/* Handheld scanner input */}
           <Input

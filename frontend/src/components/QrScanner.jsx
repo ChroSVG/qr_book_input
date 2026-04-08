@@ -6,12 +6,14 @@ import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
  *   onScan: (decoded: string) => void;
  *   facingMode?: "user" | "environment";
  *   className?: string;
+ *   cooldownMs?: number;  // Minimum time between scans
  * }} props
  */
-export default function QrScanner({ onScan, facingMode = "environment", className = "" }) {
+export default function QrScanner({ onScan, facingMode = "environment", className = "", cooldownMs = 2000 }) {
   const elIdRef = useRef(`qr-${Math.random().toString(36).slice(2, 9)}`);
   const scannerRef = useRef(null);
   const onScanRef = useRef(onScan);
+  const lastScanRef = useRef(0);  // Track last successful scan time
   onScanRef.current = onScan;
 
   const cleanup = useCallback(() => {
@@ -35,8 +37,19 @@ export default function QrScanner({ onScan, facingMode = "environment", classNam
           { facingMode },
           { fps: 15, qrbox: { width: 250, height: 250 }, aspectRatio: 1 },
           (decoded) => {
+            if (!mounted) return;
+            
             const text = typeof decoded === "string" ? decoded : decoded.decodedText || decoded.text || "";
-            if (mounted && text) onScanRef.current(text);
+            if (!text) return;
+            
+            // Check cooldown - prevent rapid repeated scans
+            const now = Date.now();
+            if (now - lastScanRef.current < cooldownMs) {
+              return;  // Still in cooldown period, skip
+            }
+            
+            lastScanRef.current = now;  // Update last scan time
+            onScanRef.current(text);
           }
         );
       } catch (err) {
@@ -46,7 +59,7 @@ export default function QrScanner({ onScan, facingMode = "environment", classNam
 
     start();
     return () => { mounted = false; cleanup(); };
-  }, [facingMode, cleanup]);
+  }, [facingMode, cleanup, cooldownMs]);
 
   return (
     <div className={`relative w-full h-full bg-black overflow-hidden rounded-2xl ${className}`}>

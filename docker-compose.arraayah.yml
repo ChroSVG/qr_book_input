@@ -1,0 +1,46 @@
+# Production configuration for arraayah.my.id
+# Usage: docker compose -f docker-compose.yml -f docker-compose.arraayah.yml up -d
+
+services:
+  backend:
+    environment:
+      # CORS untuk domain Anda
+      - CORS_ORIGINS=["https://arraayah.my.id"]
+      - DB_ECHO=false
+      
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/data/?page=1&limit=1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    
+    restart: always
+  
+  frontend:
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    
+    restart: always
+    
+    build:
+      args:
+        # Kosongkan karena frontend dan backend di domain yang sama
+        VITE_API_BASE: ""
