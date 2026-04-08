@@ -12,6 +12,7 @@ from database import get_session
 from schemas import DataCreate, DataUpdate, DataResponse, DataListResponse
 from repository import DataRepository
 from service import DataService
+from auth import verify_api_key
 
 router = APIRouter(prefix="/api/data", tags=["items"])
 
@@ -21,12 +22,12 @@ def get_data_service(session: AsyncSession = Depends(get_session)) -> DataServic
     return DataService(DataRepository(session))
 
 
-@router.post("/", response_model=DataResponse, status_code=201)
+@router.post("/", response_model=DataResponse, status_code=201, dependencies=[Depends(verify_api_key)])
 async def create_item(
     payload: DataCreate,
     svc: DataService = Depends(get_data_service),
 ):
-    """Create a new inventory item. Returns 409 if QR code already exists."""
+    """Create a new inventory item. Returns 409 if QR code already exists. Requires API key."""
     existing = await svc.get_by_qr(qr_code=payload.qr_code)
     if existing:
         raise HTTPException(status_code=409, detail="qr_code already exists")
@@ -40,7 +41,7 @@ async def list_items(
     q: str | None = None,
     svc: DataService = Depends(get_data_service),
 ):
-    """List items with pagination and optional search."""
+    """List items with pagination and optional search. Public endpoint."""
     items, total = await svc.list_items(page=page, limit=limit, search=q)
     return DataListResponse(
         data=items,
@@ -56,7 +57,7 @@ async def get_item(
     item_id: int,
     svc: DataService = Depends(get_data_service),
 ):
-    """Get a single item by ID."""
+    """Get a single item by ID. Public endpoint."""
     obj = await svc.get_item(item_id)
     if not obj:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -68,32 +69,33 @@ async def get_item_by_qr(
     qr_code: str,
     svc: DataService = Depends(get_data_service),
 ):
-    """Get a single item by QR code."""
+    """Get a single item by QR code. Public endpoint."""
     obj = await svc.get_by_qr(qr_code)
     if not obj:
         raise HTTPException(status_code=404, detail="Item not found")
     return obj
 
 
-@router.put("/{item_id}", response_model=DataResponse)
+@router.put("/{item_id}", response_model=DataResponse, dependencies=[Depends(verify_api_key)])
 async def update_item(
     item_id: int,
     payload: DataUpdate,
     svc: DataService = Depends(get_data_service),
 ):
-    """Update an existing item (partial update)."""
+    """Update an existing item (partial update). Requires API key."""
     obj = await svc.update_item(item_id, payload)
     if not obj:
         raise HTTPException(status_code=404, detail="Item not found")
     return obj
 
 
-@router.delete("/{item_id}", status_code=204)
+@router.delete("/{item_id}", status_code=204, dependencies=[Depends(verify_api_key)])
 async def delete_item(
     item_id: int,
     svc: DataService = Depends(get_data_service),
 ):
-    """Delete an item."""
+    """Delete an item. Requires API key."""
     deleted = await svc.delete_item(item_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Item not found")
+

@@ -30,6 +30,9 @@ class Settings(BaseSettings):
 
     # Frontend dist path
     dist_dir: str = Field(default="dist", alias="DIST_DIR")
+    
+    # API Key Authentication
+    api_key: str | None = Field(default=None, alias="API_KEY")
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "populate_by_name": True}
 

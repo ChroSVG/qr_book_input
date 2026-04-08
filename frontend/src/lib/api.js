@@ -4,11 +4,46 @@
  */
 import axios from "axios";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+// API base URL configuration
+// Priority: VITE_API_BASE env var > auto-detect from current origin > fallback
+const getApiBase = () => {
+  // If explicitly set via env variable, use it
+  if (import.meta.env.VITE_API_BASE) {
+    return import.meta.env.VITE_API_BASE;
+  }
+  
+  // For production behind Cloudflare Tunnel:
+  // If frontend and backend share the same domain (e.g., tunnel.example.com),
+  // use empty string for relative paths
+  // If backend is on different domain/subdomain, set VITE_API_BASE accordingly
+  
+  // Default: use current origin (works when frontend & backend are on same domain)
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  
+  return "";
+};
+
+const API_BASE = getApiBase();
+
+// API Key configuration
+const API_KEY = import.meta.env.VITE_API_KEY || "";
 
 const api = axios.create({
   baseURL: `${API_BASE}/api`,
   timeout: 10_000,
+  headers: {
+    ...(API_KEY && { "X-API-Key": API_KEY }),
+  },
+});
+
+// Request interceptor for debugging
+api.interceptors.request.use((config) => {
+  if (API_KEY) {
+    config.headers["X-API-Key"] = API_KEY;
+  }
+  return config;
 });
 
 // ── Items ──────────────────────────────────────────────────────────────────
