@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import QrScanner from "../components/QrScanner";
 import { useToast } from "../providers/ToastProvider";
 import { useCreateItem, useLookupItem } from "../hooks/useItems";
-import { Input, Button, Card, ArabicInput } from "../ui";
+import { Input, Button, Card } from "../ui";
 
 export default function ScanPage() {
   const toast = useToast();
@@ -49,6 +49,19 @@ export default function ScanPage() {
   // Focus scanner input on mount
   useEffect(() => {
     const t = setTimeout(() => scannerInputRef.current?.focus(), 300);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Initialize Yamli on form inputs
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (typeof Yamli !== "undefined" && Yamli.init) {
+        Yamli.init();
+        Yamli.yamlify("yamli-item-name", { startMode: "offOrUserDefault" });
+        Yamli.yamlify("yamli-item-desc", { startMode: "offOrUserDefault" });
+        Yamli.yamlify("yamli-item-extra", { startMode: "offOrUserDefault" });
+      }
+    }, 500);
     return () => clearTimeout(t);
   }, []);
 
@@ -149,28 +162,30 @@ export default function ScanPage() {
           <form onSubmit={handleSave} className="space-y-4">
             <Input value={form.qr} placeholder="QR Code" readOnly />
 
-            <ArabicInput
+            <Input
               ref={nameInputRef}
+              id="yamli-item-name"
               value={form.name}
-              onChange={(val) => setForm({ ...form, name: val })}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Item name *"
-              label="Item Name"
             />
 
             <div>
-              <ArabicInput
+              <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
+              <textarea
+                id="yamli-item-desc"
                 value={form.desc}
-                onChange={(val) => setForm({ ...form, desc: val })}
+                onChange={(e) => setForm({ ...form, desc: e.target.value })}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-24"
                 placeholder="Optional description"
-                label="Description"
               />
             </div>
 
-            <ArabicInput
+            <Input
+              id="yamli-item-extra"
               value={form.extra}
-              onChange={(val) => setForm({ ...form, extra: val })}
+              onChange={(e) => setForm({ ...form, extra: e.target.value })}
               placeholder="Extra info (optional)"
-              label="Extra Info"
             />
 
             <div className="flex gap-3 pt-2">

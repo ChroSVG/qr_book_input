@@ -9,5 +9,13 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Yamli Arabic Transliteration API -->
+    <script type="text/javascript" src="//api.yamli.com/js/yamli_api.js"></script>
+    <script type="text/javascript">
+      if (typeof(Yamli) == 'object' && Yamli.init) {
+        Yamli.init();
+      }
+    </script>
   </body>
 </html>
