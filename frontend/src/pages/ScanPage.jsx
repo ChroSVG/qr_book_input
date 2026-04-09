@@ -70,22 +70,22 @@ export default function ScanPage() {
   }, []);
 
   // Force Yamli to finalize current word when input loses focus
+  // Adds temporary space to trigger transliteration, removes it immediately after
   const handleYamliBlur = useCallback((e) => {
     const input = e.target;
     const value = input.value;
     
-    // If value ends with non-space, add and remove space to trigger transliteration
+    // If value ends with non-space, add space to trigger Yamli then remove immediately
     if (value && !value.endsWith(' ')) {
       // Temporarily add space to trigger Yamli conversion
       input.value = value + ' ';
-      // Trigger input event so Yamli processes it
       input.dispatchEvent(new Event('input', { bubbles: true }));
-      // Remove space after short delay
-      setTimeout(() => {
+      
+      // Remove space immediately (synchronously) using requestAnimationFrame
+      requestAnimationFrame(() => {
         input.value = input.value.trimEnd();
-        // Trigger React onChange
         input.dispatchEvent(new Event('input', { bubbles: true }));
-      }, 50);
+      });
     }
   }, []);
 
@@ -139,12 +139,20 @@ export default function ScanPage() {
       return toast("QR Code and Name are required", { type: "error" });
     }
 
+    // Trim trailing spaces from Yamli before saving
+    const cleanForm = {
+      qr: form.qr.trimEnd(),
+      name: form.name.trimEnd(),
+      desc: (form.desc || "").trimEnd(),
+      extra: (form.extra || "").trimEnd()
+    };
+
     try {
       await create({
-        qr_code: form.qr,
-        name: form.name,
-        description: form.desc || null,
-        extra_info: form.extra || null,
+        qr_code: cleanForm.qr,
+        name: cleanForm.name,
+        description: cleanForm.desc || null,
+        extra_info: cleanForm.extra || null,
       });
       toast("Item saved successfully", { type: "success" });
       setForm({ id: null, qr: "", name: "", desc: "", extra: "" });
