@@ -143,14 +143,31 @@ export default function ScanPage() {
             </div>
           )}
 
-          {/* Handheld scanner input */}
-          <Input
-            ref={scannerInputRef}
-            placeholder="Or type/paste QR code here..."
-            onChange={handleScannerInputChange}
-            onKeyDown={handleScannerInputKeyDown}
-            autoComplete="off"
-          />
+          {/* Handheld scanner input with random generate button */}
+          <div className="flex gap-2">
+            <Input
+              ref={scannerInputRef}
+              placeholder="Type or paste QR code..."
+              onChange={handleScannerInputChange}
+              onKeyDown={handleScannerInputKeyDown}
+              autoComplete="off"
+              className="flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const randomQR = `QR-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+                if (scannerInputRef.current) {
+                  scannerInputRef.current.value = randomQR;
+                }
+                processScan(randomQR);
+              }}
+              className="px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-sm font-medium rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all shadow-sm hover:shadow-md active:scale-95"
+              title="Generate random QR code"
+            >
+              🎲 Random
+            </button>
+          </div>
         </div>
 
         {/* Form Panel */}
