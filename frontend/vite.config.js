@@ -7,7 +7,7 @@ import mkcert from 'vite-plugin-mkcert';
 export default defineConfig(({ mode }) => {
   // Load env file
   const env = loadEnv(mode, process.cwd(), '');
-  const backendUrl = env.VITE_BACKEND_URL || 'http://localhost:8001';
+  const backendUrl = env.VITE_BACKEND_URL || 'http://localhost:8000';
   
   return {
     plugins: [react(), tailwindcss(), mkcert()],
