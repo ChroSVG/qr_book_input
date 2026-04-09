@@ -57,9 +57,9 @@ export default function ScanPage() {
     const t = setTimeout(() => {
       if (typeof Yamli !== "undefined" && Yamli.init) {
         Yamli.init();
-        Yamli.yamlify("yamli-item-name", { startMode: "offOrUserDefault" });
-        Yamli.yamlify("yamli-item-desc", { startMode: "offOrUserDefault" });
-        Yamli.yamlify("yamli-item-extra", { startMode: "offOrUserDefault" });
+        Yamli.yamlify("yamli-item-name", { startMode: "onOrUserDefault" });
+        Yamli.yamlify("yamli-item-desc", { startMode: "onOrUserDefault" });
+        Yamli.yamlify("yamli-item-extra", { startMode: "onOrUserDefault" });
       }
     }, 500);
     return () => clearTimeout(t);
@@ -160,7 +160,11 @@ export default function ScanPage() {
           </h2>
 
           <form onSubmit={handleSave} className="space-y-4">
-            <Input value={form.qr} placeholder="QR Code" readOnly />
+            <Input
+              value={form.qr}
+              onChange={(e) => setForm({ ...form, qr: e.target.value })}
+              placeholder="QR Code *"
+            />
 
             <Input
               ref={nameInputRef}
