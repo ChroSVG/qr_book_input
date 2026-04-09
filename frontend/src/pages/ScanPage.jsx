@@ -57,9 +57,11 @@ export default function ScanPage() {
     const t = setTimeout(() => {
       if (typeof Yamli !== "undefined" && Yamli.init) {
         Yamli.init();
-        Yamli.yamlify("yamli-item-name", { startMode: "onOrUserDefault" });
-        Yamli.yamlify("yamli-item-desc", { startMode: "onOrUserDefault" });
-        Yamli.yamlify("yamli-item-extra", { startMode: "onOrUserDefault" });
+        // Use startMode: "off" for independent control per input
+        // Each input starts OFF and user toggles individually
+        Yamli.yamlify("yamli-item-name", { startMode: "off" });
+        Yamli.yamlify("yamli-item-desc", { startMode: "off" });
+        Yamli.yamlify("yamli-item-extra", { startMode: "off" });
       }
     }, 500);
     return () => clearTimeout(t);
