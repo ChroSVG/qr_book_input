@@ -70,22 +70,15 @@ export default function ScanPage() {
   }, []);
 
   // Force Yamli to finalize current word when input loses focus
-  // Adds temporary space to trigger transliteration, removes it immediately after
+  // Adds temporary space to trigger Yamli transliteration, leaves it for user to clean on submit
   const handleYamliBlur = useCallback((e) => {
     const input = e.target;
     const value = input.value;
     
-    // If value ends with non-space, add space to trigger Yamli then remove immediately
+    // If value ends with non-space, add space to trigger Yamli conversion
     if (value && !value.endsWith(' ')) {
-      // Temporarily add space to trigger Yamli conversion
       input.value = value + ' ';
       input.dispatchEvent(new Event('input', { bubbles: true }));
-      
-      // Remove space immediately (synchronously) using requestAnimationFrame
-      requestAnimationFrame(() => {
-        input.value = input.value.trimEnd();
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-      });
     }
   }, []);
 
