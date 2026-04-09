@@ -52,6 +52,19 @@ export default function ScanPage() {
     return () => clearTimeout(t);
   }, []);
 
+  // Initialize Yamli on form inputs
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (typeof Yamli !== "undefined" && Yamli.init) {
+        Yamli.init();
+        Yamli.yamlify("yamli-item-name", { startMode: "offOrUserDefault" });
+        Yamli.yamlify("yamli-item-desc", { startMode: "offOrUserDefault" });
+        Yamli.yamlify("yamli-item-extra", { startMode: "offOrUserDefault" });
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, []);
+
   // Handheld scanner input (debounced)
   const handleScannerInputChange = useCallback((e) => {
     const value = e.target.value;
@@ -151,6 +164,7 @@ export default function ScanPage() {
 
             <Input
               ref={nameInputRef}
+              id="yamli-item-name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Item name *"
@@ -159,6 +173,7 @@ export default function ScanPage() {
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
               <textarea
+                id="yamli-item-desc"
                 value={form.desc}
                 onChange={(e) => setForm({ ...form, desc: e.target.value })}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-24"
@@ -167,6 +182,7 @@ export default function ScanPage() {
             </div>
 
             <Input
+              id="yamli-item-extra"
               value={form.extra}
               onChange={(e) => setForm({ ...form, extra: e.target.value })}
               placeholder="Extra info (optional)"
