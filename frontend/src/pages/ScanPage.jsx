@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import QrScanner from "../components/QrScanner";
 import { useToast } from "../providers/ToastProvider";
 import { useCreateItem, useLookupItem } from "../hooks/useItems";
-import { Input, Button, Card } from "../ui";
+import { Input, Button, Card, ArabicInput } from "../ui";
 
 export default function ScanPage() {
   const toast = useToast();
@@ -149,27 +149,28 @@ export default function ScanPage() {
           <form onSubmit={handleSave} className="space-y-4">
             <Input value={form.qr} placeholder="QR Code" readOnly />
 
-            <Input
+            <ArabicInput
               ref={nameInputRef}
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(val) => setForm({ ...form, name: val })}
               placeholder="Item name *"
+              label="Item Name"
             />
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
-              <textarea
+              <ArabicInput
                 value={form.desc}
-                onChange={(e) => setForm({ ...form, desc: e.target.value })}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-24"
+                onChange={(val) => setForm({ ...form, desc: val })}
                 placeholder="Optional description"
+                label="Description"
               />
             </div>
 
-            <Input
+            <ArabicInput
               value={form.extra}
-              onChange={(e) => setForm({ ...form, extra: e.target.value })}
+              onChange={(val) => setForm({ ...form, extra: val })}
               placeholder="Extra info (optional)"
+              label="Extra Info"
             />
 
             <div className="flex gap-3 pt-2">

@@ -5,7 +5,7 @@ import { getExportUrl } from "../lib/api";
 import { useToast } from "../providers/ToastProvider";
 import DataTable from "../components/DataTable";
 import QrScanner from "../components/QrScanner";
-import { Button, Input, Spinner, Badge, Modal } from "../ui";
+import { Button, Input, Spinner, Badge, Modal, ArabicInput } from "../ui";
 
 export default function TablePage() {
   const [searchParams, setSearchParams] = useSearchParams();
