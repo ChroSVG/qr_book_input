@@ -69,9 +69,28 @@ export default function ScanPage() {
     return () => clearTimeout(t);
   }, []);
 
+  // Force Yamli to finalize current word when input loses focus
+  const handleYamliBlur = useCallback((e) => {
+    const input = e.target;
+    const value = input.value;
+    
+    // If value ends with non-space, add and remove space to trigger transliteration
+    if (value && !value.endsWith(' ')) {
+      // Temporarily add space to trigger Yamli conversion
+      input.value = value + ' ';
+      // Trigger input event so Yamli processes it
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      // Remove space after short delay
+      setTimeout(() => {
+        input.value = input.value.trimEnd();
+        // Trigger React onChange
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }, 50);
+    }
+  }, []);
+
   // Custom Yamli toggle - yamlify on first toggle, then use deyamlify/yamlify
   const toggleYamli = useCallback((inputId) => {
-    if (typeof Yamli === "undefined") return;
     
     setYamliState(prev => {
       const isCurrentlyOn = prev[inputId];
@@ -217,6 +236,7 @@ export default function ScanPage() {
                 id="yamli-item-name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onBlur={handleYamliBlur}
                 placeholder="Item name *"
                 dir={yamliState["yamli-item-name"] ? "rtl" : "ltr"}
                 className={yamliState["yamli-item-name"] ? "pr-24" : ""}
@@ -242,6 +262,7 @@ export default function ScanPage() {
                 id="yamli-item-desc"
                 value={form.desc}
                 onChange={(e) => setForm({ ...form, desc: e.target.value })}
+                onBlur={handleYamliBlur}
                 className={`w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-24 ${
                   yamliState["yamli-item-desc"] ? "pr-26" : ""
                 }`}
@@ -268,6 +289,7 @@ export default function ScanPage() {
                 id="yamli-item-extra"
                 value={form.extra}
                 onChange={(e) => setForm({ ...form, extra: e.target.value })}
+                onBlur={handleYamliBlur}
                 placeholder="Extra info (optional)"
                 dir={yamliState["yamli-item-extra"] ? "rtl" : "ltr"}
                 className={yamliState["yamli-item-extra"] ? "pr-26" : ""}
