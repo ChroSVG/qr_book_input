@@ -5,27 +5,9 @@
 import axios from "axios";
 
 // API base URL configuration
-// Priority: VITE_API_BASE env var > auto-detect from current origin > fallback
-const getApiBase = () => {
-  // If explicitly set via env variable, use it
-  if (import.meta.env.VITE_API_BASE) {
-    return import.meta.env.VITE_API_BASE;
-  }
-  
-  // For production behind Cloudflare Tunnel:
-  // If frontend and backend share the same domain (e.g., tunnel.example.com),
-  // use empty string for relative paths
-  // If backend is on different domain/subdomain, set VITE_API_BASE accordingly
-  
-  // Default: use current origin (works when frontend & backend are on same domain)
-  if (typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-  
-  return "";
-};
-
-const API_BASE = getApiBase();
+// For production: use empty string for relative paths (same origin)
+// This ensures HTTPS when frontend is served over HTTPS
+const API_BASE = import.meta.env.VITE_API_BASE || "";
 
 // API Key configuration
 const API_KEY = import.meta.env.VITE_API_KEY || "";
