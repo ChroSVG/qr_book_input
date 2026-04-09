@@ -52,19 +52,44 @@ export default function ScanPage() {
     return () => clearTimeout(t);
   }, []);
 
-  // Initialize Yamli on form inputs
+  // Track Yamli state per input
+  const [yamliState, setYamliState] = useState({
+    "yamli-item-name": false,
+    "yamli-item-desc": false,
+    "yamli-item-extra": false
+  });
+
+  // Initialize Yamli (but don't yamlify inputs yet - wait for user toggle)
   useEffect(() => {
     const t = setTimeout(() => {
       if (typeof Yamli !== "undefined" && Yamli.init) {
         Yamli.init();
-        // Use startMode: "off" for independent control per input
-        // Each input starts OFF and user toggles individually
-        Yamli.yamlify("yamli-item-name", { startMode: "off" });
-        Yamli.yamlify("yamli-item-desc", { startMode: "off" });
-        Yamli.yamlify("yamli-item-extra", { startMode: "off" });
       }
     }, 500);
     return () => clearTimeout(t);
+  }, []);
+
+  // Custom Yamli toggle - yamlify on first toggle, then use deyamlify/yamlify
+  const toggleYamli = useCallback((inputId) => {
+    if (typeof Yamli === "undefined") return;
+    
+    setYamliState(prev => {
+      const isCurrentlyOn = prev[inputId];
+      const newState = !isCurrentlyOn;
+      
+      if (newState) {
+        // Turn ON - yamlify this input
+        Yamli.yamlify(inputId, { 
+          startMode: "on",
+          settingsPlacement: "hide"
+        });
+      } else {
+        // Turn OFF - deyamlify this input
+        Yamli.deyamlify(inputId);
+      }
+      
+      return { ...prev, [inputId]: newState };
+    });
   }, []);
 
   // Handheld scanner input (debounced)
@@ -185,31 +210,81 @@ export default function ScanPage() {
               placeholder="QR Code *"
             />
 
-            <Input
-              ref={nameInputRef}
-              id="yamli-item-name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Item name *"
-            />
+            {/* Item Name with Yamli Toggle */}
+            <div className="relative">
+              <Input
+                ref={nameInputRef}
+                id="yamli-item-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Item name *"
+                dir={yamliState["yamli-item-name"] ? "rtl" : "ltr"}
+                className={yamliState["yamli-item-name"] ? "pr-24" : ""}
+              />
+              <button
+                type="button"
+                onClick={() => toggleYamli("yamli-item-name")}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
+                  yamliState["yamli-item-name"]
+                    ? "bg-blue-500 text-white hover:bg-blue-600"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+                title={yamliState["yamli-item-name"] ? "Disable Arabic input" : "Enable Arabic input"}
+              >
+                {yamliState["yamli-item-name"] ? "عربي" : "🔤"}
+              </button>
+            </div>
 
-            <div>
+            {/* Description with Yamli Toggle */}
+            <div className="relative">
               <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
               <textarea
                 id="yamli-item-desc"
                 value={form.desc}
                 onChange={(e) => setForm({ ...form, desc: e.target.value })}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-24"
+                className={`w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-24 ${
+                  yamliState["yamli-item-desc"] ? "pr-26" : ""
+                }`}
                 placeholder="Optional description"
+                dir={yamliState["yamli-item-desc"] ? "rtl" : "ltr"}
               />
+              <button
+                type="button"
+                onClick={() => toggleYamli("yamli-item-desc")}
+                className={`absolute right-2 top-8 px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
+                  yamliState["yamli-item-desc"]
+                    ? "bg-blue-500 text-white hover:bg-blue-600"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+                title={yamliState["yamli-item-desc"] ? "Disable Arabic input" : "Enable Arabic input"}
+              >
+                {yamliState["yamli-item-desc"] ? "عربي" : "🔤"}
+              </button>
             </div>
 
-            <Input
-              id="yamli-item-extra"
-              value={form.extra}
-              onChange={(e) => setForm({ ...form, extra: e.target.value })}
-              placeholder="Extra info (optional)"
-            />
+            {/* Extra Info with Yamli Toggle */}
+            <div className="relative">
+              <Input
+                id="yamli-item-extra"
+                value={form.extra}
+                onChange={(e) => setForm({ ...form, extra: e.target.value })}
+                placeholder="Extra info (optional)"
+                dir={yamliState["yamli-item-extra"] ? "rtl" : "ltr"}
+                className={yamliState["yamli-item-extra"] ? "pr-26" : ""}
+              />
+              <button
+                type="button"
+                onClick={() => toggleYamli("yamli-item-extra")}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
+                  yamliState["yamli-item-extra"]
+                    ? "bg-blue-500 text-white hover:bg-blue-600"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+                title={yamliState["yamli-item-extra"] ? "Disable Arabic input" : "Enable Arabic input"}
+              >
+                {yamliState["yamli-item-extra"] ? "عربي" : "🔤"}
+              </button>
+            </div>
 
             <div className="flex gap-3 pt-2">
               <Button type="submit" loading={loading} className="flex-1">
