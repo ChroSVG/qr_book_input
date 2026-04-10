@@ -1,13 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import QrScanner from "../components/QrScanner";
 import { useToast } from "../providers/ToastProvider";
-import { useCreateItem, useLookupItem } from "../hooks/useItems";
+import { useCreateItem, useLookupItem, useUpdateItem } from "../hooks/useItems";
 import { Input, Button, Card } from "../ui";
 
 export default function ScanPage() {
   const toast = useToast();
   const { create, loading: creating } = useCreateItem();
   const { lookup, loading: lookingUp } = useLookupItem();
+  const { update, loading: updating } = useUpdateItem();
 
   const [form, setForm] = useState({ id: null, qr: "", name: "", desc: "", extra: "" });
   const [mode, setMode] = useState("new"); // "new" | "edit"
@@ -52,56 +53,17 @@ export default function ScanPage() {
     return () => clearTimeout(t);
   }, []);
 
-  // Track Yamli state per input
-  const [yamliState, setYamliState] = useState({
-    "yamli-item-name": false,
-    "yamli-item-desc": false,
-    "yamli-item-extra": false
-  });
-
-  // Initialize Yamli (but don't yamlify inputs yet - wait for user toggle)
+  // Initialize Yamli on form inputs
   useEffect(() => {
     const t = setTimeout(() => {
       if (typeof Yamli !== "undefined" && Yamli.init) {
         Yamli.init();
+        Yamli.yamlify("yamli-item-name", { startMode: "offOrUserDefault" });
+        Yamli.yamlify("yamli-item-desc", { startMode: "offOrUserDefault" });
+        Yamli.yamlify("yamli-item-extra", { startMode: "offOrUserDefault" });
       }
     }, 500);
     return () => clearTimeout(t);
-  }, []);
-
-  // Force Yamli to finalize current word when input loses focus
-  // Adds temporary space to trigger Yamli transliteration, leaves it for user to clean on submit
-  const handleYamliBlur = useCallback((e) => {
-    const input = e.target;
-    const value = input.value;
-    
-    // If value ends with non-space, add space to trigger Yamli conversion
-    if (value && !value.endsWith(' ')) {
-      input.value = value + ' ';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  }, []);
-
-  // Custom Yamli toggle - yamlify on first toggle, then use deyamlify/yamlify
-  const toggleYamli = useCallback((inputId) => {
-    
-    setYamliState(prev => {
-      const isCurrentlyOn = prev[inputId];
-      const newState = !isCurrentlyOn;
-      
-      if (newState) {
-        // Turn ON - yamlify this input
-        Yamli.yamlify(inputId, { 
-          startMode: "on",
-          settingsPlacement: "hide"
-        });
-      } else {
-        // Turn OFF - deyamlify this input
-        Yamli.deyamlify(inputId);
-      }
-      
-      return { ...prev, [inputId]: newState };
-    });
   }, []);
 
   // Handheld scanner input (debounced)
@@ -141,13 +103,23 @@ export default function ScanPage() {
     };
 
     try {
-      await create({
-        qr_code: cleanForm.qr,
-        name: cleanForm.name,
-        description: cleanForm.desc || null,
-        extra_info: cleanForm.extra || null,
-      });
-      toast("Item saved successfully", { type: "success" });
+      if (mode === "edit" && form.id) {
+        await update(form.id, {
+          qr_code: cleanForm.qr,
+          name: cleanForm.name,
+          description: cleanForm.desc || null,
+          extra_info: cleanForm.extra || null,
+        });
+        toast("Item updated successfully", { type: "success" });
+      } else {
+        await create({
+          qr_code: cleanForm.qr,
+          name: cleanForm.name,
+          description: cleanForm.desc || null,
+          extra_info: cleanForm.extra || null,
+        });
+        toast("Item saved successfully", { type: "success" });
+      }
       setForm({ id: null, qr: "", name: "", desc: "", extra: "" });
       setMode("new");
       setTimeout(() => scannerInputRef.current?.focus(), 100);
@@ -164,7 +136,7 @@ export default function ScanPage() {
     setMode("new");
   };
 
-  const loading = creating || lookingUp;
+  const loading = creating || lookingUp || updating;
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -230,84 +202,31 @@ export default function ScanPage() {
               placeholder="QR Code *"
             />
 
-            {/* Item Name with Yamli Toggle */}
-            <div className="relative">
-              <Input
-                ref={nameInputRef}
-                id="yamli-item-name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                onBlur={handleYamliBlur}
-                placeholder="Item name *"
-                dir={yamliState["yamli-item-name"] ? "rtl" : "ltr"}
-                className={yamliState["yamli-item-name"] ? "pr-24" : ""}
-              />
-              <button
-                type="button"
-                onClick={() => toggleYamli("yamli-item-name")}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
-                  yamliState["yamli-item-name"]
-                    ? "bg-blue-500 text-white hover:bg-blue-600"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-                title={yamliState["yamli-item-name"] ? "Disable Arabic input" : "Enable Arabic input"}
-              >
-                {yamliState["yamli-item-name"] ? "عربي" : "🔤"}
-              </button>
-            </div>
+            <Input
+              ref={nameInputRef}
+              id="yamli-item-name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Item name *"
+            />
 
-            {/* Description with Yamli Toggle */}
-            <div className="relative">
+            <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
               <textarea
                 id="yamli-item-desc"
                 value={form.desc}
                 onChange={(e) => setForm({ ...form, desc: e.target.value })}
-                onBlur={handleYamliBlur}
-                className={`w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-24 ${
-                  yamliState["yamli-item-desc"] ? "pr-26" : ""
-                }`}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-24"
                 placeholder="Optional description"
-                dir={yamliState["yamli-item-desc"] ? "rtl" : "ltr"}
               />
-              <button
-                type="button"
-                onClick={() => toggleYamli("yamli-item-desc")}
-                className={`absolute right-2 top-8 px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
-                  yamliState["yamli-item-desc"]
-                    ? "bg-blue-500 text-white hover:bg-blue-600"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-                title={yamliState["yamli-item-desc"] ? "Disable Arabic input" : "Enable Arabic input"}
-              >
-                {yamliState["yamli-item-desc"] ? "عربي" : "🔤"}
-              </button>
             </div>
 
-            {/* Extra Info with Yamli Toggle */}
-            <div className="relative">
-              <Input
-                id="yamli-item-extra"
-                value={form.extra}
-                onChange={(e) => setForm({ ...form, extra: e.target.value })}
-                onBlur={handleYamliBlur}
-                placeholder="Extra info (optional)"
-                dir={yamliState["yamli-item-extra"] ? "rtl" : "ltr"}
-                className={yamliState["yamli-item-extra"] ? "pr-26" : ""}
-              />
-              <button
-                type="button"
-                onClick={() => toggleYamli("yamli-item-extra")}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
-                  yamliState["yamli-item-extra"]
-                    ? "bg-blue-500 text-white hover:bg-blue-600"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-                title={yamliState["yamli-item-extra"] ? "Disable Arabic input" : "Enable Arabic input"}
-              >
-                {yamliState["yamli-item-extra"] ? "عربي" : "🔤"}
-              </button>
-            </div>
+            <Input
+              id="yamli-item-extra"
+              value={form.extra}
+              onChange={(e) => setForm({ ...form, extra: e.target.value })}
+              placeholder="Extra info (optional)"
+            />
 
             <div className="flex gap-3 pt-2">
               <Button type="submit" loading={loading} className="flex-1">

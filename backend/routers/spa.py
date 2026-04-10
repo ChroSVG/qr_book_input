@@ -1,6 +1,7 @@
 """SPA fallback route — serves index.html for client-side routing."""
 
 import os
+import re
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
@@ -12,6 +13,10 @@ router = APIRouter()
 
 @router.get("/{full_path:path}")
 async def serve_spa(full_path: str):
+    # Don't catch /api/* paths — let API routers handle them
+    if re.match(r"^api(/.*)?$", full_path):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+    
     """Serve the React SPA index.html for any non-API route.
 
     This enables client-side routing (React Router) to work correctly

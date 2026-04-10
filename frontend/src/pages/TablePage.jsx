@@ -1,7 +1,7 @@
-﻿import { useState, useCallback } from "react";
+﻿import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useItems, useUpdateItem, useDeleteItem } from "../hooks/useItems";
-import { getExportUrl } from "../lib/api";
+import { downloadExport } from "../lib/api";
 import { useToast } from "../providers/ToastProvider";
 import DataTable from "../components/DataTable";
 import QrScanner from "../components/QrScanner";
@@ -19,11 +19,32 @@ export default function TablePage() {
   const { remove } = useDeleteItem();
 
   const [qrFilterOpen, setQrFilterOpen] = useState(false);
+  const searchInputRef = useRef(null);
+
+  // Initialize Yamli on search input
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (typeof Yamli !== "undefined" && Yamli.init) {
+        Yamli.init();
+        Yamli.yamlify("yamli-table-search", { startMode: "offOrUserDefault" });
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Sync input value with URL search param
+  useEffect(() => {
+    if (searchInputRef.current) {
+      searchInputRef.current.value = q;
+    }
+  }, [q]);
 
   // ── Handlers ────────────────────────────────────────────────────────
 
-  const handleSearch = useCallback((value) => {
+  const handleSearchSubmit = useCallback((e) => {
+    e?.preventDefault();
     const params = new URLSearchParams();
+    const value = searchInputRef.current?.value.trim() || "";
     if (value) params.set("q", value);
     params.set("page", "1");
     setSearchParams(params);
@@ -34,6 +55,15 @@ export default function TablePage() {
     params.set("page", String(newPage));
     setSearchParams(params);
   }, [searchParams, setSearchParams]);
+
+  const handleExport = useCallback(async (format) => {
+    try {
+      await downloadExport(format);
+      toast("Export downloaded", { type: "success", duration: 1500 });
+    } catch {
+      toast("Export failed", { type: "error" });
+    }
+  }, [toast]);
 
   const handleUpdate = useCallback(async (id, field, value) => {
     try {
@@ -72,10 +102,10 @@ export default function TablePage() {
           <p className="text-sm text-gray-500 mt-1">Manage and track your items in real-time.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => window.open(getExportUrl("csv"), "_blank")}>
+          <Button variant="outline" size="sm" onClick={() => handleExport("csv")} loading={false}>
             Export CSV
           </Button>
-          <Button variant="primary" size="sm" onClick={() => window.open(getExportUrl("excel"), "_blank")}>
+          <Button variant="primary" size="sm" onClick={() => handleExport("excel")} loading={false}>
             Export Excel
           </Button>
         </div>
@@ -95,8 +125,10 @@ export default function TablePage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <Input
-            value={q}
-            onChange={(e) => handleSearch(e.target.value)}
+            ref={searchInputRef}
+            id="yamli-table-search"
+            defaultValue={q}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchSubmit(e); } }}
             placeholder="Search by name or QR code..."
             className="pl-10"
           />
@@ -108,7 +140,7 @@ export default function TablePage() {
           </svg>
         </Button>
         {q && (
-          <Button variant="ghost" onClick={() => setSearchParams({ page: "1" })}>
+          <Button variant="ghost" onClick={() => { if (searchInputRef.current) searchInputRef.current.value = ""; setSearchParams({ page: "1" }); }}>
             Reset
           </Button>
         )}

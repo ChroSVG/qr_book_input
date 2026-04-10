@@ -90,3 +90,37 @@ export async function deleteItem(id) {
 export function getExportUrl(format) {
   return `/api/data/export/${format}`;
 }
+
+/**
+ * Download an exported file (CSV or Excel).
+ * Uses axios so the X-API-Key header is sent automatically.
+ * @param {"csv" | "excel"} format
+ */
+export async function downloadExport(format) {
+  const ext = format === "csv" ? "csv" : "xlsx";
+  const mimeType =
+    format === "csv"
+      ? "text/csv;charset=utf-8"
+      : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const filename = `data_export.${ext}`;
+
+  const { data, headers } = await api.get(`/data/export/${format}`, {
+    responseType: "blob",
+  });
+
+  // Try to get filename from Content-Disposition header
+  const disposition = headers["content-disposition"];
+  const finalName = disposition
+    ? disposition.split("filename=")[1]?.replace(/"/g, "") || filename
+    : filename;
+
+  // Create a temporary download link
+  const url = window.URL.createObjectURL(new Blob([data], { type: mimeType }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", finalName);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
