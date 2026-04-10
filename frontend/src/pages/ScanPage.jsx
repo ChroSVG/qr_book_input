@@ -105,6 +105,24 @@ export default function ScanPage() {
     return () => clearTimeout(t);
   }, []);
 
+  // Force Yamli to finalize current word and sync to React state
+  const handleYamliBlur = useCallback((field) => (e) => {
+    const input = e.target;
+    const value = input.value;
+    
+    if (value && !value.endsWith(' ')) {
+      // Add space to trigger Yamli conversion
+      input.value = value + ' ';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      
+      // Sync Yamli result to React state after conversion
+      setTimeout(() => {
+        const finalizedValue = input.value.trimEnd();
+        setForm(prev => ({ ...prev, [field]: finalizedValue }));
+      }, 10);
+    }
+  }, []);
+
   // Handheld scanner input (debounced)
   const handleScannerInputChange = useCallback((e) => {
     const value = e.target.value;
@@ -252,6 +270,7 @@ export default function ScanPage() {
                 ref={titleInputRef}
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
+              onBlur={handleYamliBlur("title")}
                 placeholder="Title *"
               />
             </div>
@@ -259,58 +278,68 @@ export default function ScanPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Edition</label>
-                <Input id="yamli-item-edition" value={form.edition} onChange={(e) => setForm({ ...form, edition: e.target.value })} placeholder="e.g. 1st, 2nd" />
+                <Input id="yamli-item-edition" value={form.edition} onChange={(e) => setForm({ ...form, edition: e.target.value })}
+                onBlur={handleYamliBlur("edition")} placeholder="e.g. 1st, 2nd" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Publisher</label>
-                <Input id="yamli-item-publisher_name" value={form.publisher_name} onChange={(e) => setForm({ ...form, publisher_name: e.target.value })} placeholder="Publisher name" />
+                <Input id="yamli-item-publisher_name" value={form.publisher_name} onChange={(e) => setForm({ ...form, publisher_name: e.target.value })}
+                onBlur={handleYamliBlur("publisher_name")} placeholder="Publisher name" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Year</label>
-                <Input id="yamli-item-publish_year" type="number" value={form.publish_year} onChange={(e) => setForm({ ...form, publish_year: e.target.value })} placeholder="e.g. 2024" />
+                <Input id="yamli-item-publish_year" type="number" value={form.publish_year} onChange={(e) => setForm({ ...form, publish_year: e.target.value })}
+                onBlur={handleYamliBlur("publish_year")} placeholder="e.g. 2024" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Call No.</label>
-                <Input id="yamli-item-call_number" value={form.call_number} onChange={(e) => setForm({ ...form, call_number: e.target.value })} placeholder="Call number" />
+                <Input id="yamli-item-call_number" value={form.call_number} onChange={(e) => setForm({ ...form, call_number: e.target.value })}
+                onBlur={handleYamliBlur("call_number")} placeholder="Call number" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Language</label>
-                <Input id="yamli-item-language_name" value={form.language_name} onChange={(e) => setForm({ ...form, language_name: e.target.value })} placeholder="e.g. Indonesian, Arabic" />
+                <Input id="yamli-item-language_name" value={form.language_name} onChange={(e) => setForm({ ...form, language_name: e.target.value })}
+                onBlur={handleYamliBlur("language_name")} placeholder="e.g. Indonesian, Arabic" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Place</label>
-                <Input id="yamli-item-place_name" value={form.place_name} onChange={(e) => setForm({ ...form, place_name: e.target.value })} placeholder="Place of publication" />
+                <Input id="yamli-item-place_name" value={form.place_name} onChange={(e) => setForm({ ...form, place_name: e.target.value })}
+                onBlur={handleYamliBlur("place_name")} placeholder="Place of publication" />
               </div>
             </div>
 
             {/* Classification */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Classification</label>
-              <Input id="yamli-item-classification" value={form.classification} onChange={(e) => setForm({ ...form, classification: e.target.value })} placeholder="e.g. Dewey decimal" />
+              <Input id="yamli-item-classification" value={form.classification} onChange={(e) => setForm({ ...form, classification: e.target.value })}
+              onBlur={handleYamliBlur("classification")} placeholder="e.g. Dewey decimal" />
             </div>
 
             {/* Authors */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Authors</label>
-              <Input id="yamli-item-authors" value={form.authors} onChange={(e) => setForm({ ...form, authors: e.target.value })} placeholder="Author(s), comma-separated" />
+              <Input id="yamli-item-authors" value={form.authors} onChange={(e) => setForm({ ...form, authors: e.target.value })}
+              onBlur={handleYamliBlur("authors")} placeholder="Author(s), comma-separated" />
             </div>
 
             {/* Topics */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Topics</label>
-              <Input id="yamli-item-topics" value={form.topics} onChange={(e) => setForm({ ...form, topics: e.target.value })} placeholder="Topic(s), comma-separated" />
+              <Input id="yamli-item-topics" value={form.topics} onChange={(e) => setForm({ ...form, topics: e.target.value })}
+              onBlur={handleYamliBlur("topics")} placeholder="Topic(s), comma-separated" />
             </div>
 
             {/* Volume */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Volume</label>
-              <Input id="yamli-item-volume" value={form.volume} onChange={(e) => setForm({ ...form, volume: e.target.value })} placeholder="Volume / edition" />
+              <Input id="yamli-item-volume" value={form.volume} onChange={(e) => setForm({ ...form, volume: e.target.value })}
+              onBlur={handleYamliBlur("volume")} placeholder="Volume / edition" />
             </div>
 
             {/* Description */}
@@ -320,6 +349,7 @@ export default function ScanPage() {
                 id="yamli-item-description"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onBlur={handleYamliBlur("description")}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-20"
                 placeholder="Optional description"
               />
@@ -332,6 +362,7 @@ export default function ScanPage() {
                 id="yamli-item-extra_info"
                 value={form.extra_info}
                 onChange={(e) => setForm({ ...form, extra_info: e.target.value })}
+                onBlur={handleYamliBlur("extra_info")}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-20"
                 placeholder="Extra info (optional)"
               />
