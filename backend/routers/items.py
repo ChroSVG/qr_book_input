@@ -27,10 +27,10 @@ async def create_item(
     payload: DataCreate,
     svc: DataService = Depends(get_data_service),
 ):
-    """Create a new inventory item. Returns 409 if QR code already exists. Requires API key."""
-    existing = await svc.get_by_qr(qr_code=payload.qr_code)
+    """Create a new inventory item. Returns 409 if item_code already exists. Requires API key."""
+    existing = await svc.get_by_qr(item_code=payload.item_code)
     if existing:
-        raise HTTPException(status_code=409, detail="qr_code already exists")
+        raise HTTPException(status_code=409, detail="item_code already exists")
     return await svc.create_item(payload)
 
 
@@ -64,13 +64,13 @@ async def get_item(
     return obj
 
 
-@router.get("/qr/{qr_code}", response_model=DataResponse)
+@router.get("/qr/{item_code}", response_model=DataResponse)
 async def get_item_by_qr(
-    qr_code: str,
+    item_code: str,
     svc: DataService = Depends(get_data_service),
 ):
-    """Get a single item by QR code. Public endpoint."""
-    obj = await svc.get_by_qr(qr_code)
+    """Get a single item by item code. Public endpoint."""
+    obj = await svc.get_by_qr(item_code)
     if not obj:
         raise HTTPException(status_code=404, detail="Item not found")
     return obj

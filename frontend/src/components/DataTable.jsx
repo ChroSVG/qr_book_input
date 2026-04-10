@@ -2,6 +2,26 @@ import EditableCell from "./EditableCell";
 import { Card, EmptyState, Badge } from "../ui";
 
 /**
+ * Biblio fields displayed in the table.
+ */
+const BIBLIO_COLUMNS = [
+  { key: "item_code", label: "Item Code" },
+  { key: "title", label: "Title" },
+  { key: "edition", label: "Edition" },
+  { key: "publisher_name", label: "Publisher" },
+  { key: "publish_year", label: "Year" },
+  { key: "call_number", label: "Call No." },
+  { key: "language_name", label: "Language" },
+  { key: "place_name", label: "Place" },
+  { key: "classification", label: "Classification" },
+  { key: "authors", label: "Authors" },
+  { key: "topics", label: "Topics" },
+  { key: "volume", label: "Volume" },
+  { key: "description", label: "Description" },
+  { key: "extra_info", label: "Extra Info" },
+];
+
+/**
  * @param {{
  *   items: Array<import('../lib/api').Item>;
  *   onUpdate: (id: number, field: string, value: string) => void;
@@ -25,20 +45,22 @@ export default function DataTable({ items, onUpdate, onDelete, loading = false }
         <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50/80">
             <tr className="text-left text-[11px] font-black text-gray-500 uppercase tracking-wider">
-              <th className="px-5 py-4">QR Code</th>
-              <th className="px-5 py-4">Name</th>
-              <th className="px-5 py-4">Description</th>
-              <th className="px-5 py-4">Extra Info</th>
-              <th className="px-5 py-4 text-center">Actions</th>
+              {BIBLIO_COLUMNS.map((col) => (
+                <th key={col.key} className="px-5 py-4 whitespace-nowrap">{col.label}</th>
+              ))}
+              <th className="px-5 py-4 text-center whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {items.map((item) => (
               <tr key={item.id} className="hover:bg-blue-50/20 transition-colors">
-                <EditableCell value={item.qr_code} onSave={(v) => onUpdate(item.id, "qr_code", v)} />
-                <EditableCell value={item.name} onSave={(v) => onUpdate(item.id, "name", v)} />
-                <EditableCell value={item.description} onSave={(v) => onUpdate(item.id, "description", v)} />
-                <EditableCell value={item.extra_info} onSave={(v) => onUpdate(item.id, "extra_info", v)} />
+                {BIBLIO_COLUMNS.map((col) => (
+                  <EditableCell
+                    key={col.key}
+                    value={item[col.key]}
+                    onSave={(v) => onUpdate(item.id, col.key, v)}
+                  />
+                ))}
                 <td className="px-5 py-4 text-center">
                   <button
                     onClick={() => {

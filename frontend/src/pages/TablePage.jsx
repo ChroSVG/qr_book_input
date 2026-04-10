@@ -129,7 +129,7 @@ export default function TablePage() {
             id="yamli-table-search"
             defaultValue={q}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchSubmit(e); } }}
-            placeholder="Search by name or QR code..."
+            placeholder="Search by title or item code..."
             className="pl-10"
           />
         </div>

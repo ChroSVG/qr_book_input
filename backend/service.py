@@ -24,9 +24,9 @@ class DataService:
         item = Data(**payload.model_dump())
         return await self.repo.add(item)
 
-    async def get_by_qr(self, qr_code: str) -> Optional[Data]:
-        """Check if a QR code already exists."""
-        return await self.repo.get_by_qr_code(qr_code)
+    async def get_by_qr(self, item_code: str) -> Optional[Data]:
+        """Check if an item code already exists."""
+        return await self.repo.get_by_item_code(item_code)
 
     # ── Read ───────────────────────────────────────────────────────────
 

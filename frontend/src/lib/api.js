@@ -31,7 +31,7 @@ api.interceptors.request.use((config) => {
 // ── Items ──────────────────────────────────────────────────────────────────
 
 /**
- * @param {{ qr_code: string; name: string; description?: string; extra_info?: string }} payload
+ * @param {{ item_code: string; title: string; edition?: string; publisher_name?: string; publish_year?: number; call_number?: string; language_name?: string; place_name?: string; classification?: string; authors?: string; topics?: string; volume?: string; description?: string; extra_info?: string }} payload
  * @returns {Promise<Item>}
  */
 export async function createItem(payload) {
@@ -40,11 +40,11 @@ export async function createItem(payload) {
 }
 
 /**
- * @param {string} qrCode
+ * @param {string} itemCode
  * @returns {Promise<Item>}
  */
-export async function getItemByQr(qrCode) {
-  const { data } = await api.get(`/data/qr/${encodeURIComponent(qrCode)}`);
+export async function getItemByQr(itemCode) {
+  const { data } = await api.get(`/data/qr/${encodeURIComponent(itemCode)}`);
   return data;
 }
 

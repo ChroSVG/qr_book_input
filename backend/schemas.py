@@ -6,17 +6,27 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
-# ── Shared fields ──────────────────────────────────────────────────────────
+# ── Shared fields ────────────────────────────────────────────────────────
 
 class DataBase(BaseModel):
     """Fields shared by create/update operations."""
-    qr_code: str
-    name: str
+    item_code: str
+    title: str
+    edition: Optional[str] = None
+    publisher_name: Optional[str] = None
+    publish_year: Optional[int] = None
+    call_number: Optional[str] = None
+    language_name: Optional[str] = None
+    place_name: Optional[str] = None
+    classification: Optional[str] = None
+    authors: Optional[str] = None
+    topics: Optional[str] = None
+    volume: Optional[str] = None
     description: Optional[str] = None
     extra_info: Optional[str] = None
 
 
-# ── Request schemas ────────────────────────────────────────────────────────
+# ── Request schemas ──────────────────────────────────────────────────────
 
 class DataCreate(DataBase):
     """Payload for creating a new inventory item."""
@@ -25,12 +35,23 @@ class DataCreate(DataBase):
 
 class DataUpdate(BaseModel):
     """Payload for updating an existing item (all fields optional)."""
-    name: Optional[str] = None
+    item_code: Optional[str] = None
+    title: Optional[str] = None
+    edition: Optional[str] = None
+    publisher_name: Optional[str] = None
+    publish_year: Optional[int] = None
+    call_number: Optional[str] = None
+    language_name: Optional[str] = None
+    place_name: Optional[str] = None
+    classification: Optional[str] = None
+    authors: Optional[str] = None
+    topics: Optional[str] = None
+    volume: Optional[str] = None
     description: Optional[str] = None
     extra_info: Optional[str] = None
 
 
-# ── Response schemas ───────────────────────────────────────────────────────
+# ── Response schemas ─────────────────────────────────────────────────────
 
 class DataResponse(DataBase):
     """Single item response."""

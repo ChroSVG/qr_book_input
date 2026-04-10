@@ -45,9 +45,9 @@ class DataRepository:
         """Fetch a single item by primary key."""
         return await self.session.get(Data, item_id)
 
-    async def get_by_qr_code(self, qr_code: str) -> Optional[Data]:
-        """Fetch a single item by its QR code."""
-        stmt = select(Data).where(Data.qr_code == qr_code)
+    async def get_by_item_code(self, item_code: str) -> Optional[Data]:
+        """Fetch a single item by its item code."""
+        stmt = select(Data).where(Data.item_code == item_code)
         result = await self.session.exec(stmt)
         return result.first()
 
@@ -63,7 +63,7 @@ class DataRepository:
 
         if search:
             like = f"%{search}%"
-            base_filter = (Data.qr_code.ilike(like)) | (Data.name.ilike(like))
+            base_filter = (Data.item_code.ilike(like)) | (Data.title.ilike(like))
 
         # Total count
         count_stmt = select(func.count()).select_from(Data)
