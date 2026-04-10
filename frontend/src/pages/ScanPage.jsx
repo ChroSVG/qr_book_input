@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import QrScanner from "../components/QrScanner";
 import { useToast } from "../providers/ToastProvider";
 import { useCreateItem, useLookupItem, useUpdateItem } from "../hooks/useItems";
@@ -86,7 +86,7 @@ export default function ScanPage() {
     const t = setTimeout(() => {
       if (typeof Yamli !== "undefined" && Yamli.init) {
         Yamli.init();
-        Yamli.yamlify("yamli-item-item_code", { startMode: "offOrUserDefault" });
+        // Yamli.yamlify("yamli-item-item_code", { startMode: "offOrUserDefault" });
         Yamli.yamlify("yamli-item-title", { startMode: "offOrUserDefault" });
         Yamli.yamlify("yamli-item-edition", { startMode: "offOrUserDefault" });
         Yamli.yamlify("yamli-item-publisher_name", { startMode: "offOrUserDefault" });
@@ -177,31 +177,6 @@ export default function ScanPage() {
 
   const loading = creating || lookingUp || updating;
 
-  const Field = ({ label, field, placeholder, type = "text", ref: inputRef, multiline = false }) => (
-    <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
-      {multiline ? (
-        <textarea
-          id={`yamli-item-${field}`}
-          value={form[field]}
-          onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-20"
-          placeholder={placeholder}
-          ref={inputRef}
-        />
-      ) : (
-        <Input
-          id={`yamli-item-${field}`}
-          type={type}
-          value={form[field]}
-          onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-          placeholder={placeholder}
-          ref={inputRef}
-        />
-      )}
-    </div>
-  );
-
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
       <div className="grid lg:grid-cols-2 gap-8">
@@ -258,36 +233,109 @@ export default function ScanPage() {
           </h2>
 
           <form onSubmit={handleSave} className="space-y-4">
-            <Field label="Item Code *" field="item_code" placeholder="Item code (scanned) *" />
+            {/* Item Code */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Item Code *</label>
+              <Input
+                id="yamli-item-item_code"
+                value={form.item_code}
+                onChange={(e) => setForm({ ...form, item_code: e.target.value })}
+                placeholder="Item code (scanned) *"
+              />
+            </div>
 
-            <Field label="Title *" field="title" placeholder="Title *" ref={titleInputRef} />
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Edition" field="edition" placeholder="e.g. 1st, 2nd" />
-              <Field label="Publisher" field="publisher_name" placeholder="Publisher name" />
+            {/* Title */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Title *</label>
+              <Input
+                id="yamli-item-title"
+                ref={titleInputRef}
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="Title *"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Year" field="publish_year" placeholder="e.g. 2024" type="number" />
-              <Field label="Call No." field="call_number" placeholder="Call number" />
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Edition</label>
+                <Input id="yamli-item-edition" value={form.edition} onChange={(e) => setForm({ ...form, edition: e.target.value })} placeholder="e.g. 1st, 2nd" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Publisher</label>
+                <Input id="yamli-item-publisher_name" value={form.publisher_name} onChange={(e) => setForm({ ...form, publisher_name: e.target.value })} placeholder="Publisher name" />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Language" field="language_name" placeholder="e.g. Indonesian, Arabic" />
-              <Field label="Place" field="place_name" placeholder="Place of publication" />
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Year</label>
+                <Input id="yamli-item-publish_year" type="number" value={form.publish_year} onChange={(e) => setForm({ ...form, publish_year: e.target.value })} placeholder="e.g. 2024" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Call No.</label>
+                <Input id="yamli-item-call_number" value={form.call_number} onChange={(e) => setForm({ ...form, call_number: e.target.value })} placeholder="Call number" />
+              </div>
             </div>
 
-            <Field label="Classification" field="classification" placeholder="e.g. Dewey decimal" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Language</label>
+                <Input id="yamli-item-language_name" value={form.language_name} onChange={(e) => setForm({ ...form, language_name: e.target.value })} placeholder="e.g. Indonesian, Arabic" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Place</label>
+                <Input id="yamli-item-place_name" value={form.place_name} onChange={(e) => setForm({ ...form, place_name: e.target.value })} placeholder="Place of publication" />
+              </div>
+            </div>
 
-            <Field label="Authors" field="authors" placeholder="Author(s), comma-separated" />
+            {/* Classification */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Classification</label>
+              <Input id="yamli-item-classification" value={form.classification} onChange={(e) => setForm({ ...form, classification: e.target.value })} placeholder="e.g. Dewey decimal" />
+            </div>
 
-            <Field label="Topics" field="topics" placeholder="Topic(s), comma-separated" />
+            {/* Authors */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Authors</label>
+              <Input id="yamli-item-authors" value={form.authors} onChange={(e) => setForm({ ...form, authors: e.target.value })} placeholder="Author(s), comma-separated" />
+            </div>
 
-            <Field label="Volume" field="volume" placeholder="Volume / edition" />
+            {/* Topics */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Topics</label>
+              <Input id="yamli-item-topics" value={form.topics} onChange={(e) => setForm({ ...form, topics: e.target.value })} placeholder="Topic(s), comma-separated" />
+            </div>
 
-            <Field label="Description" field="description" placeholder="Optional description" multiline />
+            {/* Volume */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Volume</label>
+              <Input id="yamli-item-volume" value={form.volume} onChange={(e) => setForm({ ...form, volume: e.target.value })} placeholder="Volume / edition" />
+            </div>
 
-            <Field label="Extra Info" field="extra_info" placeholder="Extra info (optional)" multiline />
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
+              <textarea
+                id="yamli-item-description"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-20"
+                placeholder="Optional description"
+              />
+            </div>
+
+            {/* Extra Info */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Extra Info</label>
+              <textarea
+                id="yamli-item-extra_info"
+                value={form.extra_info}
+                onChange={(e) => setForm({ ...form, extra_info: e.target.value })}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none h-20"
+                placeholder="Extra info (optional)"
+              />
+            </div>
 
             <div className="flex gap-3 pt-2">
               <Button type="submit" loading={loading} className="flex-1">
