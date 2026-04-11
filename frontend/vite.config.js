@@ -13,7 +13,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss(), mkcert()],
     server: {
       host: true,
-      port: 3000,
+      port: 3001,
+      hmr: {
+        overlay: true,
+      },
       proxy: {
         "/api": {
           target: backendUrl,

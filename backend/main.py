@@ -8,9 +8,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 from config import settings
@@ -49,6 +50,22 @@ def create_app() -> FastAPI:
     # ── Routes ─────────────────────────────────────────────────────────
     app.include_router(items_router)
     app.include_router(export_router)
+
+    # ── Static Files (frontend build) ──────────────────────────────────
+    dist_path = os.path.join(os.path.dirname(__file__), settings.dist_dir)
+    if os.path.exists(dist_path):
+        app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
+        
+        # Serve vite.svg and other root static files
+        from fastapi.responses import FileResponse
+        
+        @app.get("/vite.svg", include_in_schema=False)
+        async def serve_vite_svg():
+            svg_path = os.path.join(dist_path, "vite.svg")
+            if os.path.exists(svg_path):
+                return FileResponse(svg_path, media_type="image/svg+xml")
+            raise HTTPException(status_code=404, detail="File not found")
+
     app.include_router(spa_router)
 
     # ── Auth Info Endpoint ─────────────────────────────────────────────

@@ -41,11 +41,23 @@ export async function createItem(payload) {
 
 /**
  * @param {string} itemCode
- * @returns {Promise<Item>}
+ * @returns {Promise<Item|null>}
  */
 export async function getItemByQr(itemCode) {
-  const { data } = await api.get(`/data/qr/${encodeURIComponent(itemCode)}`);
-  return data;
+  try {
+    const { data } = await api.get(`/data/qr/${encodeURIComponent(itemCode)}`);
+    // Check if data is valid (not null/undefined/empty)
+    if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
+      return null;
+    }
+    return data;
+  } catch (error) {
+    // Return null for 404 (not found), rethrow other errors
+    if (error.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**

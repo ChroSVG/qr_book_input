@@ -43,4 +43,4 @@ services:
     build:
       args:
         # Kosongkan karena frontend dan backend di domain yang sama
-        VITE_API_BASE: ""
+        VITE_API_BASE: "https://api.arraayah.my.id/"

@@ -8,6 +8,30 @@ import TableSkeleton from "../components/TableSkeleton";
 import QrScanner from "../components/QrScanner";
 import { Button, Input, Badge, Modal } from "../ui";
 
+const SEARCH_HISTORY_KEY = "table_search_history";
+const MAX_HISTORY = 10;
+
+function getSearchHistory() {
+  try {
+    const raw = localStorage.getItem(SEARCH_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function addToHistory(query) {
+  if (!query || !query.trim()) return;
+  const history = getSearchHistory();
+  const filtered = history.filter(h => h !== query);
+  const updated = [query, ...filtered].slice(0, MAX_HISTORY);
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(updated));
+}
+
+function clearSearchHistory() {
+  localStorage.removeItem(SEARCH_HISTORY_KEY);
+}
+
 export default function TablePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
@@ -25,6 +49,20 @@ export default function TablePage() {
 
   const [qrFilterOpen, setQrFilterOpen] = useState(false);
   const searchInputRef = useRef(null);
+  const [searchHistory, setSearchHistory] = useState(getSearchHistory());
+  const [showHistory, setShowHistory] = useState(false);
+  const searchWrapperRef = useRef(null);
+
+  // Close history dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target)) {
+        setShowHistory(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Initialize Yamli on search input
   useEffect(() => {
@@ -50,10 +88,32 @@ export default function TablePage() {
     e?.preventDefault();
     const params = new URLSearchParams();
     const value = searchInputRef.current?.value.trim() || "";
-    if (value) params.set("q", value);
+    if (value) {
+      params.set("q", value);
+      addToHistory(value);
+      setSearchHistory(getSearchHistory());
+    }
     params.set("page", "1");
     setSearchParams(params);
+    setShowHistory(false);
   }, [setSearchParams]);
+
+  const handleHistorySelect = useCallback((query) => {
+    if (searchInputRef.current) {
+      searchInputRef.current.value = query;
+    }
+    const params = new URLSearchParams();
+    params.set("q", query);
+    params.set("page", "1");
+    setSearchParams(params);
+    setShowHistory(false);
+  }, [setSearchParams]);
+
+  const handleClearHistory = useCallback(() => {
+    clearSearchHistory();
+    setSearchHistory([]);
+    toast("Search history cleared", { type: "info" });
+  }, [toast]);
 
   const handlePageChange = useCallback((newPage) => {
     const params = new URLSearchParams(searchParams);
@@ -148,7 +208,7 @@ export default function TablePage() {
 
       {/* Search bar */}
       <div className="flex gap-2 mb-6">
-        <div className="relative flex-1">
+        <div className="relative flex-1" ref={searchWrapperRef}>
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -157,9 +217,40 @@ export default function TablePage() {
             id="yamli-table-search"
             defaultValue={q}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchSubmit(e); } }}
+            onFocus={() => searchHistory.length > 0 && setShowHistory(true)}
             placeholder="Search by title or item code..."
             className="pl-10"
           />
+          
+          {/* Search History Dropdown */}
+          {showHistory && searchHistory.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-100">
+                <span className="text-xs font-medium text-gray-500">Recent Searches</span>
+                <button
+                  type="button"
+                  onClick={handleClearHistory}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Clear All
+                </button>
+              </div>
+              <ul className="max-h-60 overflow-y-auto">
+                {searchHistory.map((item, idx) => (
+                  <li
+                    key={idx}
+                    onClick={() => handleHistorySelect(item)}
+                    className="px-3 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center gap-3 transition-colors"
+                  >
+                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm text-gray-700 truncate">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
         <Button variant="outline" onClick={() => setQrFilterOpen(true)} title="Scan to filter">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

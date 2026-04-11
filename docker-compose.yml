@@ -1,3 +1,13 @@
+# ============================================
+# QR Input GPT - Unified Docker Compose
+# ============================================
+# Usage:
+#   Development:    docker compose up -d --build
+#   Staging:        ENV=staging docker compose up -d --build
+#   Production:     ENV=arraayah docker compose up -d --build
+#   Input Domain:   ENV=input docker compose up -d --build
+# ============================================
+
 services:
   backend:
     build: ./backend
@@ -5,19 +15,51 @@ services:
     ports:
       - "8001:8000"
     environment:
+      # Database
       - DATABASE_URL=sqlite+aiosqlite:///data/data.db
+      - DB_ECHO=${DB_ECHO:-false}
+      
+      # CORS - will be overridden by environment
+      - CORS_ORIGINS=${CORS_ORIGINS:-["*"]}
+      - CORS_ALLOW_CREDENTIALS=true
+      - CORS_ALLOW_METHODS=["*"]
+      - CORS_ALLOW_HEADERS=["*"]
+      
+      # API Key Authentication
+      - API_KEY=${API_KEY:-}
+      
+      # Frontend dist path
+      - DIST_DIR=dist
+    
     volumes:
       - ./backend/data.db:/app/data/data.db
+    
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/data/?page=1&limit=1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+      interval: ${HEALTH_INTERVAL:-10s}
+      timeout: ${HEALTH_TIMEOUT:-5s}
+      retries: ${HEALTH_RETRIES:-3}
+      start_period: ${HEALTH_START_PERIOD:-10s}
+    
     restart: unless-stopped
+    
+    # Resource limits (optional, can be overridden)
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT:-4}'
+          memory: ${MEMORY_LIMIT:-2G}
+        reservations:
+          cpus: '${CPU_RESERVATION:-0.5}'
+          memory: ${MEMORY_RESERVATION:-256M}
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-}
+        VITE_API_KEY: ${VITE_API_KEY:-}
+        VITE_PDF_API_BASE: ${VITE_PDF_API_BASE:-}
     container_name: qr-frontend
     ports:
       - "3000:80"
@@ -25,3 +67,13 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '${FRONTEND_CPU_LIMIT:-1}'
+          memory: ${FRONTEND_MEMORY_LIMIT:-512M}
+        reservations:
+          cpus: '${FRONTEND_CPU_RESERVATION:-0.25}'
+          memory: ${FRONTEND_MEMORY_RESERVATION:-128M}
