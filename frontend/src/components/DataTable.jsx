@@ -1,25 +1,28 @@
 import EditableCell from "./EditableCell";
-import { Card, EmptyState, Badge } from "../ui";
+import { Card, EmptyState, Badge, Button } from "../ui";
 
 /**
- * Biblio fields displayed in the table.
+ * Biblio fields with explicit pixel widths for <colgroup>.
+ * Exported so TableSkeleton can reuse the same column config.
  */
-const BIBLIO_COLUMNS = [
-  { key: "item_code", label: "Item Code" },
-  { key: "title", label: "Title" },
-  { key: "edition", label: "Edition" },
-  { key: "publisher_name", label: "Publisher" },
-  { key: "publish_year", label: "Year" },
-  { key: "call_number", label: "Call No." },
-  { key: "language_name", label: "Language" },
-  { key: "place_name", label: "Place" },
-  { key: "classification", label: "Classification" },
-  { key: "authors", label: "Authors" },
-  { key: "topics", label: "Topics" },
-  { key: "volume", label: "Volume" },
-  { key: "description", label: "Description" },
-  { key: "extra_info", label: "Extra Info" },
+export const BIBLIO_COLUMNS = [
+  { key: "item_code", label: "Item Code", w:200 },
+  { key: "title", label: "Title", w:200 },
+  { key: "edition", label: "Edition", w:200 },
+  { key: "publisher_name", label: "Publisher", w:200 },
+  { key: "publish_year", label: "Year", w:200},
+  { key: "call_number", label: "Call No.", w:200},
+  { key: "language_name", label: "Language", w:200},
+  { key: "place_name", label: "Place", w:200},
+  { key: "classification", label: "Classification", w:200},
+  { key: "authors", label: "Authors", w:200 },
+  { key: "topics", label: "Topics", w:200 },
+  { key: "volume", label: "Volume", w:200},
+  { key: "description", label: "Description", w:200 },
+  { key: "extra_info", label: "Extra Info", w:200 },
 ];
+
+const ACTIONS_W = 64;
 
 /**
  * @param {{
@@ -27,41 +30,55 @@ const BIBLIO_COLUMNS = [
  *   onUpdate: (id: number, field: string, value: string) => void;
  *   onDelete: (id: number) => void;
  *   loading?: boolean;
+ *   onClearSearch?: () => void;
  * }} props
  */
-export default function DataTable({ items, onUpdate, onDelete, loading = false }) {
+export default function DataTable({ items, onUpdate, onDelete, loading = false, onClearSearch }) {
   if (!items || items.length === 0) {
     return (
       <EmptyState
         title="No items found"
         description="Try adjusting your search or add new items through the Scan page."
+        action={onClearSearch && (
+          <Button variant="outline" size="sm" onClick={onClearSearch}>
+            Clear Search
+          </Button>
+        )}
       />
     );
   }
 
   return (
     <Card className="overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-100">
-          <thead className="bg-gray-50/80">
+      <div className="overflow-x-auto max-h-[70vh]">
+        <table className="min-w-full divide-y divide-gray-100 table-fixed">
+          <colgroup>
+            {BIBLIO_COLUMNS.map((col) => (
+              <col key={col.key} style={{ width: col.w }} />
+            ))}
+            <col style={{ width: ACTIONS_W }} />
+          </colgroup>
+
+          <thead className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm">
             <tr className="text-left text-[11px] font-black text-gray-500 uppercase tracking-wider">
               {BIBLIO_COLUMNS.map((col) => (
-                <th key={col.key} className="px-5 py-4 whitespace-nowrap">{col.label}</th>
+                <th key={col.key} className="px-2 py-3 whitespace-nowrap border-b border-gray-200">{col.label}</th>
               ))}
-              <th className="px-5 py-4 text-center whitespace-nowrap">Actions</th>
+              <th className="px-2 py-3 text-center whitespace-nowrap border-b border-gray-200">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {items.map((item) => (
-              <tr key={item.id} className="hover:bg-blue-50/20 transition-colors">
+              <tr key={item.id} className="hover:bg-blue-50/40 hover:ring-1 hover:ring-blue-200/50 transition-all">
                 {BIBLIO_COLUMNS.map((col) => (
                   <EditableCell
                     key={col.key}
                     value={item[col.key]}
                     onSave={(v) => onUpdate(item.id, col.key, v)}
+                    width={col.w}
                   />
                 ))}
-                <td className="px-5 py-4 text-center">
+                <td className="px-2 py-3 text-center whitespace-nowrap">
                   <button
                     onClick={() => {
                       if (window.confirm("Delete this item?")) onDelete(item.id);

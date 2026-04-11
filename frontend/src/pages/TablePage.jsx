@@ -4,8 +4,9 @@ import { useItems, useUpdateItem, useDeleteItem } from "../hooks/useItems";
 import { downloadExport } from "../lib/api";
 import { useToast } from "../providers/ToastProvider";
 import DataTable from "../components/DataTable";
+import TableSkeleton from "../components/TableSkeleton";
 import QrScanner from "../components/QrScanner";
-import { Button, Input, Spinner, Badge, Modal } from "../ui";
+import { Button, Input, Badge, Modal } from "../ui";
 
 export default function TablePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -14,9 +15,13 @@ export default function TablePage() {
   const page = parseInt(searchParams.get("page") || "1", 10);
   const q = searchParams.get("q") || "";
 
-  const { items, total, totalPages, loading, error, refetch } = useItems({ page, limit: 10, q });
-  const { update, loading: updating } = useUpdateItem();
+  const { items: serverItems, total, totalPages, loading, error, refetch } = useItems({ page, limit: 10, q });
+  const { update } = useUpdateItem();
   const { remove } = useDeleteItem();
+
+  // Local items state for optimistic updates
+  const [items, setItems] = useState(serverItems);
+  useEffect(() => { setItems(serverItems); }, [serverItems]);
 
   const [qrFilterOpen, setQrFilterOpen] = useState(false);
   const searchInputRef = useRef(null);
@@ -65,31 +70,54 @@ export default function TablePage() {
     }
   }, [toast]);
 
+  /**
+   * Optimistic update: update UI immediately, rollback on error.
+   */
   const handleUpdate = useCallback(async (id, field, value) => {
+    // 1. Backup current state
+    const prevItems = [...items];
+    // 2. Optimistically update local state
+    const nextItems = items.map((item) =>
+      item.id === id ? { ...item, [field]: value } : item
+    );
+    setItems(nextItems);
+
     try {
       await update(id, { [field]: value });
       toast("Updated", { type: "success", duration: 1500 });
     } catch {
-      toast("Update failed", { type: "error" });
-      refetch();
+      // 3. Rollback on error
+      setItems(prevItems);
+      toast("Update failed — reverted", { type: "error" });
     }
-  }, [update, toast, refetch]);
+  }, [items, update, toast]);
 
+  /**
+   * Optimistic delete: remove from UI immediately, rollback on error.
+   */
   const handleDelete = useCallback(async (id) => {
+    const prevItems = [...items];
+    setItems(items.filter((item) => item.id !== id));
+
     try {
       await remove(id);
       toast("Item deleted", { type: "success", duration: 1500 });
-      refetch();
     } catch {
-      toast("Delete failed", { type: "error" });
+      setItems(prevItems);
+      toast("Delete failed — reverted", { type: "error" });
     }
-  }, [remove, toast, refetch]);
+  }, [items, remove, toast]);
 
   const handleQrScan = useCallback((decoded) => {
     setSearchParams({ page: "1", q: decoded });
     setQrFilterOpen(false);
     toast(`Filtered: ${decoded}`, { type: "success" });
   }, [setSearchParams, toast]);
+
+  const handleClearSearch = useCallback(() => {
+    if (searchInputRef.current) searchInputRef.current.value = "";
+    setSearchParams({ page: "1" });
+  }, [setSearchParams]);
 
   // ── Render ──────────────────────────────────────────────────────────
 
@@ -140,29 +168,24 @@ export default function TablePage() {
           </svg>
         </Button>
         {q && (
-          <Button variant="ghost" onClick={() => { if (searchInputRef.current) searchInputRef.current.value = ""; setSearchParams({ page: "1" }); }}>
+          <Button variant="ghost" onClick={handleClearSearch}>
             Reset
           </Button>
         )}
       </div>
 
-      {/* Table */}
-      <div className="relative">
-        {loading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-2xl">
-            <Spinner size="lg" />
-          </div>
-        )}
-        {error ? (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
-            <p className="text-red-600 font-medium">Failed to load data</p>
-            <p className="text-sm text-red-400 mt-1">{error}</p>
-            <Button variant="danger" size="sm" className="mt-3" onClick={refetch}>Retry</Button>
-          </div>
-        ) : (
-          <DataTable items={items} onUpdate={handleUpdate} onDelete={handleDelete} loading={loading} />
-        )}
-      </div>
+      {/* Table — Skeleton during load, DataTable when ready */}
+      {error ? (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+          <p className="text-red-600 font-medium">Failed to load data</p>
+          <p className="text-sm text-red-400 mt-1">{error}</p>
+          <Button variant="danger" size="sm" className="mt-3" onClick={refetch}>Retry</Button>
+        </div>
+      ) : loading ? (
+        <TableSkeleton />
+      ) : (
+        <DataTable items={items} onUpdate={handleUpdate} onDelete={handleDelete} onClearSearch={handleClearSearch} />
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

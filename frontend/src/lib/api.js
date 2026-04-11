@@ -124,3 +124,41 @@ export async function downloadExport(format) {
   link.remove();
   window.URL.revokeObjectURL(url);
 }
+
+// ── Third-Party PDF Downloads ─────────────────────────────────────────────
+
+const PDF_API_BASE = import.meta.env.VITE_PDF_API_BASE || "http://localhost:8003";
+
+const pdfApi = axios.create({
+  baseURL: PDF_API_BASE,
+  timeout: 15_000,
+});
+
+/**
+ * Fetch list of downloadable PDFs from third-party API.
+ * Response: { output_dir: string, total: number, files: Array<{ filename: string, size_bytes: number, size_mb: string, modified: string }> }
+ */
+export async function fetchPdfList() {
+  const { data } = await pdfApi.get("/api/pdf/list");
+  return data;
+}
+
+/**
+ * Download a specific PDF by filename.
+ * @param {{ filename: string }} pdf
+ */
+export async function downloadPdf({ filename }) {
+  const resp = await pdfApi.get(`/api/pdf/download/${encodeURIComponent(filename)}`, {
+    responseType: "blob",
+    timeout: 30_000,
+  });
+  const blob = new Blob([resp.data], { type: "application/pdf" });
+  const blobUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(blobUrl);
+}

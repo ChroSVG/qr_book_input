@@ -7,6 +7,7 @@ import { Spinner } from "./ui";
 
 const ScanPage = lazy(() => import("./pages/ScanPage"));
 const TablePage = lazy(() => import("./pages/TablePage"));
+const DownloadsPage = lazy(() => import("./pages/DownloadsPage"));
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
                 <Route path="/" element={<ScanPage />} />
                 <Route path="/scan" element={<ScanPage />} />
                 <Route path="/table" element={<TablePage />} />
+                <Route path="/downloads" element={<DownloadsPage />} />
               </Routes>
             </Suspense>
           </Layout>
