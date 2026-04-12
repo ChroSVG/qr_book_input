@@ -157,10 +157,7 @@ export default function ScanPage() {
   useEffect(() => {
     const t = setTimeout(() => {
       if (typeof Yamli !== "undefined" && Yamli.init) {
-        // Re-init Yamli to pick up new elements
         Yamli.init();
-        // Yamli auto-detects elements with yamli-item-* IDs
-        // Just need to call yamlify for each field
         const yamliFields = [
           "yamli-item-title", "yamli-item-edition", "yamli-item-publisher_name",
           "yamli-item-publish_year", "yamli-item-call_number", "yamli-item-language_name",
@@ -173,6 +170,115 @@ export default function ScanPage() {
           if (el && Yamli.yamlify) {
             Yamli.yamlify(id, { startMode: "onOrUserDefault" });
           }
+
+          // Debug: Log only when field value changes
+          let lastValue = el?.value || '';
+          const observer = setInterval(() => {
+            const currentVal = el?.value || '';
+            if (currentVal !== lastValue) {
+              console.log(`[Yamli CHANGE] ${id.replace('yamli-item-', '')}:`, {
+                dom: currentVal,
+                endsWithSpace: currentVal.endsWith(' '),
+                length: currentVal.length,
+              });
+              lastValue = currentVal;
+            }
+          }, 100);
+
+          if (!window.__yamliDebugIntervals) window.__yamliDebugIntervals = [];
+          window.__yamliDebugIntervals.push(observer);
+
+          // Add space BEFORE focusout happens (intercept Tab, Enter, and clicks)
+          const handleKeyBeforeBlur = (e) => {
+            if ((e.key === 'Tab' || e.key === 'Enter') && document.activeElement === el) {
+              e.preventDefault();
+              const currentVal = el.value;
+              if (currentVal && !currentVal.endsWith(' ')) {
+                // Use execCommand which Yamli responds to
+                el.focus();
+                const worked = document.execCommand('insertText', false, ' ');
+                if (!worked) {
+                  el.value = currentVal + ' ';
+                  el.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                console.log(`[Yamli ${e.key.toUpperCase()} INTERCEPT] ${id.replace('yamli-item-', '')}: execCommand=${worked} →`, el.value);
+
+                // Read converted value AFTER Yamli processes
+                setTimeout(() => {
+                  const convertedVal = el.value.trimEnd();
+                  const field = id.replace('yamli-item-', '');
+                  console.log(`[Yamli ${e.key.toUpperCase()} AFTER] ${field}:`, convertedVal);
+                  convertedValuesRef.current = {
+                    ...convertedValuesRef.current,
+                    [field]: convertedVal,
+                  };
+                  setForm(prev => ({ ...prev, [field]: convertedVal }));
+                }, 80);
+              }
+            }
+          };
+
+          const handleMouseDownBeforeBlur = (e) => {
+            if (document.activeElement === el && e.target !== el) {
+              const currentVal = el.value;
+              if (currentVal && !currentVal.endsWith(' ')) {
+                el.focus();
+                const worked = document.execCommand('insertText', false, ' ');
+                if (!worked) {
+                  el.value = currentVal + ' ';
+                  el.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                console.log(`[Yamli CLICK INTERCEPT] ${id.replace('yamli-item-', '')}: execCommand=${worked} →`, el.value);
+
+                // Read converted value AFTER Yamli processes
+                setTimeout(() => {
+                  const convertedVal = el.value.trimEnd();
+                  const field = id.replace('yamli-item-', '');
+                  console.log(`[Yamli CLICK AFTER] ${field}:`, convertedVal);
+                  convertedValuesRef.current = {
+                    ...convertedValuesRef.current,
+                    [field]: convertedVal,
+                  };
+                  setForm(prev => ({ ...prev, [field]: convertedVal }));
+                }, 80);
+              }
+            }
+          };
+
+          document.addEventListener('keydown', handleKeyBeforeBlur, true);
+          document.addEventListener('mousedown', handleMouseDownBeforeBlur, true);
+
+          // Capture focusout: save converted value (with delay for Yamli to finish)
+          // This is a FALLBACK - the primary save happens in intercept handlers
+          const handleFocusOutCapture = () => {
+            const field = id.replace('yamli-item-', '');
+            // Wait for Yamli to finish converting after intercept
+            setTimeout(() => {
+              const convertedVal = el?.value.trimEnd() || '';
+              console.log(`[Yamli FOCUSOUT CAPTURE] ${field}:`, {
+                domAtFocusout: convertedVal,
+                refAlreadyHas: convertedValuesRef.current[field],
+              });
+              // Only save to ref if not already saved by intercept handler
+              if (!convertedValuesRef.current[field]) {
+                convertedValuesRef.current = {
+                  ...convertedValuesRef.current,
+                  [field]: convertedVal,
+                };
+                setForm(prev => ({ ...prev, [field]: convertedVal }));
+              }
+            }, 100);
+          };
+
+          el.addEventListener('focusout', handleFocusOutCapture, true);
+
+          if (!window.__yamliDebugListeners) window.__yamliDebugListeners = [];
+          window.__yamliDebugListeners.push({
+            el,
+            keyHandler: handleKeyBeforeBlur,
+            mouseHandler: handleMouseDownBeforeBlur,
+            focusHandler: handleFocusOutCapture,
+          });
         });
       }
     }, 800);
@@ -182,21 +288,25 @@ export default function ScanPage() {
   const handleFieldBlur = useCallback((field) => (e) => {
     const inputEl = e.target;
     const currentValue = inputEl.value;
+    console.log(`[Yamli BLUR] ${field} - before:`, {
+      domBefore: currentValue,
+      endsWithSpace: currentValue.endsWith(' '),
+    });
+
     if (currentValue && !currentValue.endsWith(' ')) {
       inputEl.value = currentValue + ' ';
       inputEl.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     // Read converted value from DOM after Yamli processes
+    // BUT: don't update ref here — let FOCUSOUT CAPTURE handle it (with delay)
     setTimeout(() => {
       const convertedValue = inputEl.value.trimEnd();
-      // Save converted value (Arabic) to ref
-      convertedValuesRef.current = {
-        ...convertedValuesRef.current,
-        [field]: convertedValue,
-      };
-      // Also update React state
-      setForm(prev => ({ ...prev, [field]: convertedValue }));
+      console.log(`[Yamli BLUR] ${field} - after:`, {
+        domAfter: convertedValue,
+        converted: convertedValue !== currentValue.trimEnd(),
+      });
+      // DON'T update ref here — FOCUSOUT CAPTURE handles it
     }, 50);
   }, []);
 
@@ -225,6 +335,13 @@ export default function ScanPage() {
     // Use converted values (Arabic) from ref instead of React state (Latin)
     const cv = convertedValuesRef.current;
     const title = cv.title || form.title;
+
+    console.log('[Yamli SAVE]', {
+      fromRef: cv,
+      fromState: { title: form.title, edition: form.edition },
+      willSave: { title, edition: cv.edition || form.edition },
+    });
+
     if (!form.item_code || !title) {
       return toast("Item Code and Title are required", { type: "error" });
     }
@@ -284,6 +401,10 @@ export default function ScanPage() {
 
   const handleRestore = () => {
     if (formBeforeEdit) {
+      console.log('[Yamli RESTORE]', {
+        restoring: formBeforeEdit,
+        currentItemCode: form.item_code,
+      });
       // Restore converted values (Arabic), keep current item_code
       const currentItemCode = form.item_code;
       setForm({ ...formBeforeEdit, item_code: currentItemCode });
