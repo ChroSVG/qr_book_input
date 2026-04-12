@@ -63,7 +63,7 @@ class DataRepository:
 
         if search:
             like = f"%{search}%"
-            base_filter = (Data.item_code.ilike(like)) | (Data.title.ilike(like))
+            base_filter = (Data.item_code.like(like)) | (Data.title.like(like))
 
         # Total count
         count_stmt = select(func.count()).select_from(Data)

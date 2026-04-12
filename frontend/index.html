@@ -13,7 +13,8 @@
     <!-- Yamli Arabic Transliteration API -->
     <script type="text/javascript" src="//api.yamli.com/js/yamli_api.js"></script>
     <script type="text/javascript">
-      if (typeof(Yamli) == 'object' && Yamli.init) {
+      // Load Yamli as soon as possible
+      if (typeof Yamli !== 'undefined' && Yamli.init) {
         Yamli.init();
       }
     </script>

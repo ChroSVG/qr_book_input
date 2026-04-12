@@ -13,6 +13,7 @@ import React from "react";
  * } & React.InputHTMLAttributes<HTMLInputElement>} props
  */
 export function Input({
+  id,
   value,
   onChange,
   placeholder,
@@ -26,6 +27,7 @@ export function Input({
   return (
     <div className="w-full">
       <input
+        id={id}
         type={type}
         value={value}
         onChange={onChange}
