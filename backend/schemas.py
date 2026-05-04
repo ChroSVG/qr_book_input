@@ -3,7 +3,58 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+# ── Auth schemas ─────────────────────────────────────────────────────────
+
+class UserRegister(BaseModel):
+    """Payload for user registration."""
+    username: str = Field(min_length=3, max_length=50)
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=100)
+
+
+class UserLogin(BaseModel):
+    """Payload for user login."""
+    username: str
+    password: str
+
+
+class UserResponse(BaseModel):
+    """User profile response."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    username: str
+    email: str
+    is_active: bool
+    created_at: datetime
+
+
+class TokenResponse(BaseModel):
+    """JWT token response."""
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
+# ── Download tracking schemas ───────────────────────────────────────────
+
+class DownloadLogResponse(BaseModel):
+    """Download log entry response."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    file_type: str
+    filename: Optional[str] = None
+    downloaded_at: datetime
+
+
+class DownloadHistoryResponse(BaseModel):
+    """Download history response."""
+    downloads: list[DownloadLogResponse]
+    total: int
 
 
 # ── Shared fields ────────────────────────────────────────────────────────

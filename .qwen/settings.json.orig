@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/home/sellgo/dokumen/input-qr-gpt/backend/.venv/bin/python *)"
+    ]
+  }
+}

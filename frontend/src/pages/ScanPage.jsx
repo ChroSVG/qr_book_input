@@ -22,28 +22,15 @@ const EMPTY_FORM = {
   extra_info: "",
 };
 
-const FORM_HISTORY_KEY = "scanpage_form_history";
-const MAX_FORM_HISTORY = 15;
-
-function getFormHistory() {
-  try {
-    const raw = localStorage.getItem(FORM_HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
 function addToFormHistory(formData) {
   if (!formData || !formData.item_code) return;
-  const history = getFormHistory();
-  const filtered = history.filter(h => h.item_code !== formData.item_code);
-  const updated = [formData, ...filtered].slice(0, MAX_FORM_HISTORY);
-  localStorage.setItem(FORM_HISTORY_KEY, JSON.stringify(updated));
-}
-
-function clearFormHistory() {
-  localStorage.removeItem(FORM_HISTORY_KEY);
+  try {
+    const raw = localStorage.getItem("scanpage_form_history");
+    const history = raw ? JSON.parse(raw) : [];
+    const filtered = history.filter(h => h.item_code !== formData.item_code);
+    const updated = [formData, ...filtered].slice(0, 15);
+    localStorage.setItem("scanpage_form_history", JSON.stringify(updated));
+  } catch { /* ignore */ }
 }
 
 export default function ScanPage() {
@@ -55,27 +42,15 @@ export default function ScanPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [mode, setMode] = useState("new");
   const [lastScanned, setLastScanned] = useState("");
-  const [formHistory, setFormHistory] = useState(getFormHistory());
-  const [showHistory, setShowHistory] = useState(false);
   const [formBeforeEdit, setFormBeforeEdit] = useState(null);
+  const [autoRandom, setAutoRandom] = useState(false); // Auto-generate random QR after submit
+
+  const scannerInputRef = useRef(null);
+  const scanTimeoutRef = useRef(null);
 
   // Store Yamli-converted values (Arabic) read from DOM on blur
   const convertedValuesRef = useRef({ ...EMPTY_FORM });
-
   const titleInputRef = useRef(null);
-  const scannerInputRef = useRef(null);
-  const scanTimeoutRef = useRef(null);
-  const itemCodeWrapperRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (itemCodeWrapperRef.current && !itemCodeWrapperRef.current.contains(e.target)) {
-        setShowHistory(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const processScan = useCallback(async (decoded) => {
     if (!decoded) return;
@@ -125,6 +100,8 @@ export default function ScanPage() {
       setMode("edit");
       toast("Item found!", { type: "success" });
     } else {
+      // For new items, preserve call_number, language_name, classification, topics from ref
+      const cv = convertedValuesRef.current;
       setForm({
         id: null,
         item_code: decoded,
@@ -132,16 +109,34 @@ export default function ScanPage() {
         edition: currentFormData.edition || "",
         publisher_name: currentFormData.publisher_name || "",
         publish_year: currentFormData.publish_year || "",
-        call_number: currentFormData.call_number || "",
-        language_name: currentFormData.language_name || "",
+        call_number: currentFormData.call_number || cv.call_number || "",
+        language_name: currentFormData.language_name || cv.language_name || "",
         place_name: currentFormData.place_name || "",
-        classification: currentFormData.classification || "",
+        classification: currentFormData.classification || cv.classification || "",
         authors: currentFormData.authors || "",
-        topics: currentFormData.topics || "",
+        topics: currentFormData.topics || cv.topics || "",
         volume: currentFormData.volume || "",
         description: currentFormData.description || "",
         extra_info: currentFormData.extra_info || "",
       });
+      // Update converted values
+      convertedValuesRef.current = {
+        id: null,
+        item_code: decoded,
+        title: currentFormData.title || "",
+        edition: currentFormData.edition || "",
+        publisher_name: currentFormData.publisher_name || "",
+        publish_year: currentFormData.publish_year || "",
+        call_number: currentFormData.call_number || cv.call_number || "",
+        language_name: currentFormData.language_name || cv.language_name || "",
+        place_name: currentFormData.place_name || "",
+        classification: currentFormData.classification || cv.classification || "",
+        authors: currentFormData.authors || "",
+        topics: currentFormData.topics || cv.topics || "",
+        volume: currentFormData.volume || "",
+        description: currentFormData.description || "",
+        extra_info: currentFormData.extra_info || "",
+      };
       setMode("new");
       toast("New item detected", { type: "info" });
     }
@@ -370,10 +365,22 @@ export default function ScanPage() {
         const updated = await update(form.id, cleanForm);
         toast("Item updated successfully", { type: "success" });
         addToFormHistory({ ...cleanForm, id: updated.id || form.id });
-        setFormHistory(getFormHistory());
-        // Reset form and converted values
-        setForm({ ...EMPTY_FORM, item_code: form.item_code });
-        convertedValuesRef.current = { ...EMPTY_FORM };
+        // Reset form but preserve call_number, language_name, classification, topics
+        setForm({
+          ...EMPTY_FORM,
+          item_code: form.item_code,
+          call_number: cv.call_number || form.call_number || "",
+          language_name: cv.language_name || form.language_name || "",
+          classification: cv.classification || form.classification || "",
+          topics: cv.topics || form.topics || "",
+        });
+        convertedValuesRef.current = {
+          ...EMPTY_FORM,
+          call_number: cv.call_number || "",
+          language_name: cv.language_name || "",
+          classification: cv.classification || "",
+          topics: cv.topics || "",
+        };
         setMode("new");
       } else {
         // Save converted values for restore
@@ -381,12 +388,30 @@ export default function ScanPage() {
         const created = await create(cleanForm);
         toast("Item saved successfully", { type: "success" });
         addToFormHistory({ ...cleanForm, id: created.id || null });
-        setFormHistory(getFormHistory());
-        // Reset form and converted values
-        setForm({ ...EMPTY_FORM, item_code: form.item_code });
-        convertedValuesRef.current = { ...EMPTY_FORM };
+        // Reset form but preserve call_number, language_name, classification, topics
+        setForm({
+          ...EMPTY_FORM,
+          item_code: form.item_code,
+          call_number: cv.call_number || form.call_number || "",
+          language_name: cv.language_name || form.language_name || "",
+          classification: cv.classification || form.classification || "",
+          topics: cv.topics || form.topics || "",
+        });
+        convertedValuesRef.current = {
+          ...EMPTY_FORM,
+          call_number: cv.call_number || "",
+          language_name: cv.language_name || "",
+          classification: cv.classification || "",
+          topics: cv.topics || "",
+        };
       }
-      setTimeout(() => scannerInputRef.current?.focus(), 100);
+      // Auto-generate random QR after submit if enabled
+      if (autoRandom) {
+        const randomQR = `QR-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+        setTimeout(() => processScan(randomQR), 200);
+      } else {
+        setTimeout(() => scannerInputRef.current?.focus(), 100);
+      }
     } catch (err) {
       const msg = err.response?.status === 409 ? "This item code already exists" : "Failed to save item";
       toast(msg, { type: "error" });
@@ -394,8 +419,14 @@ export default function ScanPage() {
   };
 
   const handleReset = () => {
-    setForm({ ...EMPTY_FORM, item_code: form.item_code });
-    convertedValuesRef.current = { ...EMPTY_FORM };
+    const preservedFields = {
+      call_number: convertedValuesRef.current.call_number || form.call_number || "",
+      language_name: convertedValuesRef.current.language_name || form.language_name || "",
+      classification: convertedValuesRef.current.classification || form.classification || "",
+      topics: convertedValuesRef.current.topics || form.topics || "",
+    };
+    setForm({ ...EMPTY_FORM, item_code: form.item_code, ...preservedFields });
+    convertedValuesRef.current = { ...EMPTY_FORM, ...preservedFields };
     setMode("new");
   };
 
@@ -417,54 +448,6 @@ export default function ScanPage() {
       toast("No previous state to restore", { type: "info" });
     }
   };
-
-  const handleHistorySelect = useCallback((historyItem) => {
-    setForm({
-      id: historyItem.id || null,
-      item_code: historyItem.item_code || "",
-      title: historyItem.title || "",
-      edition: historyItem.edition || "",
-      publisher_name: historyItem.publisher_name || "",
-      publish_year: historyItem.publish_year || "",
-      call_number: historyItem.call_number || "",
-      language_name: historyItem.language_name || "",
-      place_name: historyItem.place_name || "",
-      classification: historyItem.classification || "",
-      authors: historyItem.authors || "",
-      topics: historyItem.topics || "",
-      volume: historyItem.volume || "",
-      description: historyItem.description || "",
-      extra_info: historyItem.extra_info || "",
-    });
-    // Update converted values
-    convertedValuesRef.current = {
-      id: historyItem.id || null,
-      item_code: historyItem.item_code || "",
-      title: historyItem.title || "",
-      edition: historyItem.edition || "",
-      publisher_name: historyItem.publisher_name || "",
-      publish_year: historyItem.publish_year || "",
-      call_number: historyItem.call_number || "",
-      language_name: historyItem.language_name || "",
-      place_name: historyItem.place_name || "",
-      classification: historyItem.classification || "",
-      authors: historyItem.authors || "",
-      topics: historyItem.topics || "",
-      volume: historyItem.volume || "",
-      description: historyItem.description || "",
-      extra_info: historyItem.extra_info || "",
-    };
-    setMode(historyItem.id ? "edit" : "new");
-    setShowHistory(false);
-    toast("Form loaded from history", { type: "info" });
-  }, [toast]);
-
-  const handleClearHistory = useCallback(() => {
-    clearFormHistory();
-    setFormHistory([]);
-    setShowHistory(false);
-    toast("Form history cleared", { type: "info" });
-  }, [toast]);
 
   const handleRandomClick = useCallback((randomQR) => {
     // Use converted values to check if there's data
@@ -492,19 +475,15 @@ export default function ScanPage() {
           onScannerInputChange={handleScannerInputChange}
           onScannerInputKeyDown={handleScannerInputKeyDown}
           onRandomClick={handleRandomClick}
+          autoRandom={autoRandom}
+          onAutoRandomChange={(e) => setAutoRandom(e.target.checked)}
         />
         <FormPanel
           mode={mode}
           form={form}
           setForm={setForm}
           loading={loading}
-          formHistory={formHistory}
-          showHistory={showHistory}
-          setShowHistory={setShowHistory}
-          itemCodeWrapperRef={itemCodeWrapperRef}
           onSave={handleSave}
-          onHistorySelect={handleHistorySelect}
-          onClearHistory={handleClearHistory}
           onReset={handleReset}
           onRestore={handleRestore}
           showRestore={!!formBeforeEdit}

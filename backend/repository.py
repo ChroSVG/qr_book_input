@@ -57,24 +57,51 @@ class DataRepository:
         page: int = 1,
         limit: int = 10,
         search: Optional[str] = None,
+        language_name: Optional[str] = None,
+        classification: Optional[str] = None,
+        publish_year: Optional[int] = None,
     ) -> Tuple[List[Data], int]:
         """List items with optional search and pagination."""
-        base_filter = None
+        filters = []
 
+        # Full-text search across all columns
         if search:
             like = f"%{search}%"
-            base_filter = (Data.item_code.like(like)) | (Data.title.like(like))
+            search_filter = (
+                (Data.item_code.like(like)) |
+                (Data.title.like(like)) |
+                (Data.edition.like(like)) |
+                (Data.publisher_name.like(like)) |
+                (Data.call_number.like(like)) |
+                (Data.language_name.like(like)) |
+                (Data.place_name.like(like)) |
+                (Data.classification.like(like)) |
+                (Data.authors.like(like)) |
+                (Data.topics.like(like)) |
+                (Data.volume.like(like)) |
+                (Data.description.like(like)) |
+                (Data.extra_info.like(like))
+            )
+            filters.append(search_filter)
+
+        # Column-specific filters
+        if language_name:
+            filters.append(Data.language_name.ilike(f"%{language_name}%"))
+        if classification:
+            filters.append(Data.classification.ilike(f"%{classification}%"))
+        if publish_year:
+            filters.append(Data.publish_year == publish_year)
 
         # Total count
         count_stmt = select(func.count()).select_from(Data)
-        if base_filter is not None:
-            count_stmt = count_stmt.where(base_filter)
+        if filters:
+            count_stmt = count_stmt.where(*filters)
         total = (await self.session.exec(count_stmt)).one()
 
         # Paginated results
         query = select(Data)
-        if base_filter is not None:
-            query = query.where(base_filter)
+        if filters:
+            query = query.where(*filters)
         query = query.offset((page - 1) * limit).limit(limit)
 
         items = (await self.session.exec(query)).all()

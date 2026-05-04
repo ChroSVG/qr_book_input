@@ -20,13 +20,137 @@ const api = axios.create({
   },
 });
 
-// Request interceptor for debugging
+// Request interceptor for debugging and JWT token
 api.interceptors.request.use((config) => {
   if (API_KEY) {
     config.headers["X-API-Key"] = API_KEY;
   }
+  
+  // Add JWT token if available
+  const token = localStorage.getItem("auth_token");
+  if (token) {
+    config.headers["Authorization"] = `Bearer ${token}`;
+    console.log(`[API] Request to ${config.url} - adding Bearer token`);
+  } else {
+    console.log(`[API] Request to ${config.url} - NO TOKEN`);
+  }
+  
   return config;
+}, (error) => {
+  return Promise.reject(error);
 });
+
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response) => {
+    console.log(`[API] Response ${response.status} from ${response.config.url}`);
+    return response;
+  },
+  (error) => {
+    if (error.response) {
+      console.error(`[API] Error ${error.response.status} from ${error.config?.url}:`, error.response.data);
+      
+      if (error.response.status === 401) {
+        // Token expired or invalid - clear auth data
+        console.warn('[Auth] 401 Unauthorized - clearing auth token');
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("user_data");
+      }
+    } else if (error.request) {
+      console.error(`[API] Network error for ${error.config?.url}:`, 'No response received');
+    } else {
+      console.error(`[API] Error:`, error.message);
+    }
+    return Promise.reject(error);
+  }
+);
+
+// ── Authentication ─────────────────────────────────────────────────────────
+
+/**
+ * Register a new user
+ * @param {{ username: string; email: string; password: string }} payload
+ * @returns {Promise<{ id: number; username: string; email: string; is_active: boolean; created_at: string }>}
+ */
+export async function registerUser(payload) {
+  const { data } = await api.post("/auth/register", payload);
+  return data;
+}
+
+/**
+ * Login and get JWT token
+ * @param {{ username: string; password: string }} payload
+ * @returns {Promise<{ access_token: string; token_type: string; user: object }>}
+ */
+export async function loginUser(payload) {
+  const { data } = await api.post("/auth/login", payload);
+  if (data.access_token) {
+    localStorage.setItem("auth_token", data.access_token);
+    localStorage.setItem("user_data", JSON.stringify(data.user));
+    console.log('[Auth] Login successful, token saved:', data.access_token.substring(0, 20) + '...');
+    console.log('[Auth] User data:', data.user);
+  } else {
+    console.warn('[Auth] Login response missing access_token');
+  }
+  return data;
+}
+
+/**
+ * Logout user
+ */
+export function logoutUser() {
+  console.log('[Auth] Logging out, clearing auth data');
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("user_data");
+}
+
+/**
+ * Get current user data
+ * @returns {Promise<{ id: number; username: string; email: string; is_active: boolean; created_at: string }>}
+ */
+export async function getCurrentUser() {
+  const { data } = await api.get("/auth/me");
+  return data;
+}
+
+/**
+ * Check if user is authenticated
+ * @returns {boolean}
+ */
+export function isAuthenticated() {
+  return !!localStorage.getItem("auth_token");
+}
+
+/**
+ * Get current user data from localStorage
+ * @returns {object|null}
+ */
+export function getCurrentUserFromStorage() {
+  const userData = localStorage.getItem("user_data");
+  return userData ? JSON.parse(userData) : null;
+}
+
+// ── Download History ───────────────────────────────────────────────────────
+
+/**
+ * Get download history for current user
+ * @param {{ page?: number; limit?: number }} params
+ * @returns {Promise<{ downloads: Array<{ id: number; file_type: string; filename: string; downloaded_at: string }>; total: number }>}
+ */
+export async function getDownloadHistory({ page = 1, limit = 20 } = {}) {
+  const { data } = await api.get("/downloads/history", { params: { page, limit } });
+  return data;
+}
+
+/**
+ * Delete a download log entry
+ * @param {number} downloadId
+ * @returns {Promise<boolean>}
+ */
+export async function deleteDownloadLog(downloadId) {
+  const { status } = await api.delete(`/downloads/history/${downloadId}`);
+  return status === 204;
+}
 
 // ── Items ──────────────────────────────────────────────────────────────────
 
@@ -73,8 +197,12 @@ export async function getItemById(id) {
  * @param {{ page?: number; limit?: number; q?: string }} params
  * @returns {Promise<ItemListResponse>}
  */
-export async function listItems({ page = 1, limit = 10, q = "" } = {}) {
-  const { data } = await api.get("/data/", { params: { page, limit, q } });
+export async function listItems({ page = 1, limit = 10, q = "", lang, cls, year } = {}) {
+  const params = { page, limit, q };
+  if (lang) params.lang = lang;
+  if (cls) params.cls = cls;
+  if (year) params.year = year;
+  const { data } = await api.get("/data/", { params });
   return data;
 }
 

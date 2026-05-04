@@ -38,8 +38,11 @@ export default function TablePage() {
 
   const page = parseInt(searchParams.get("page") || "1", 10);
   const q = searchParams.get("q") || "";
+  const lang = searchParams.get("lang") || "";
+  const cls = searchParams.get("cls") || "";
+  const year = searchParams.get("year") ? parseInt(searchParams.get("year"), 10) : undefined;
 
-  const { items: serverItems, total, totalPages, loading, error, refetch } = useItems({ page, limit: 10, q });
+  const { items: serverItems, total, totalPages, loading, error, refetch } = useItems({ page, limit: 10, q, lang, cls, year });
   const { update } = useUpdateItem();
   const { remove } = useDeleteItem();
 
@@ -93,10 +96,13 @@ export default function TablePage() {
       addToHistory(value);
       setSearchHistory(getSearchHistory());
     }
+    if (lang) params.set("lang", lang);
+    if (cls) params.set("cls", cls);
+    if (year) params.set("year", String(year));
     params.set("page", "1");
     setSearchParams(params);
     setShowHistory(false);
-  }, [setSearchParams]);
+  }, [setSearchParams, lang, cls, year]);
 
   const handleHistorySelect = useCallback((query) => {
     if (searchInputRef.current) {
@@ -206,21 +212,22 @@ export default function TablePage() {
         <StatCard label="Search" value={q ? "Active" : "—"} color="purple" className="col-span-2 sm:col-span-1" />
       </div>
 
-      {/* Search bar */}
-      <div className="flex gap-2 mb-6">
-        <div className="relative flex-1" ref={searchWrapperRef}>
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <Input
-            ref={searchInputRef}
-            id="yamli-table-search"
-            defaultValue={q}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchSubmit(e); } }}
-            onFocus={() => searchHistory.length > 0 && setShowHistory(true)}
-            placeholder="Search by title or item code..."
-            className="pl-10"
-          />
+      {/* Search bar + Filters */}
+      <div className="mb-6 space-y-3">
+        <div className="flex gap-2">
+          <div className="relative flex-1" ref={searchWrapperRef}>
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <Input
+              ref={searchInputRef}
+              id="yamli-table-search"
+              defaultValue={q}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSearchSubmit(e); } }}
+              onFocus={() => searchHistory.length > 0 && setShowHistory(true)}
+              placeholder="Search all fields..."
+              className="pl-10"
+            />
           
           {/* Search History Dropdown */}
           {showHistory && searchHistory.length > 0 && (
@@ -264,6 +271,47 @@ export default function TablePage() {
           </Button>
         )}
       </div>
+
+      {/* Filter Inputs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <input
+          type="text"
+          value={lang}
+          onChange={(e) => {
+            const params = new URLSearchParams(searchParams);
+            if (e.target.value) { params.set("lang", e.target.value); } else { params.delete("lang"); }
+            params.set("page", "1");
+            setSearchParams(params);
+          }}
+          placeholder="Filter by language..."
+          className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        />
+        <input
+          type="text"
+          value={cls}
+          onChange={(e) => {
+            const params = new URLSearchParams(searchParams);
+            if (e.target.value) { params.set("cls", e.target.value); } else { params.delete("cls"); }
+            params.set("page", "1");
+            setSearchParams(params);
+          }}
+          placeholder="Filter by classification..."
+          className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        />
+        <input
+          type="number"
+          value={year || ""}
+          onChange={(e) => {
+            const params = new URLSearchParams(searchParams);
+            if (e.target.value) { params.set("year", e.target.value); } else { params.delete("year"); }
+            params.set("page", "1");
+            setSearchParams(params);
+          }}
+          placeholder="Filter by year..."
+          className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        />
+      </div>
+</div>
 
       {/* Table — Skeleton during load, DataTable when ready */}
       {error ? (

@@ -40,9 +40,17 @@ class DataService:
         page: int = 1,
         limit: int = 10,
         search: Optional[str] = None,
+        language_name: Optional[str] = None,
+        classification: Optional[str] = None,
+        publish_year: Optional[int] = None,
     ) -> Tuple[List[Data], int]:
         """List items with optional search and pagination."""
-        return await self.repo.list_items(page=page, limit=limit, search=search)
+        return await self.repo.list_items(
+            page=page, limit=limit, search=search,
+            language_name=language_name,
+            classification=classification,
+            publish_year=publish_year,
+        )
 
     # ── Update ─────────────────────────────────────────────────────────
 

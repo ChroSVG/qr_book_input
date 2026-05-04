@@ -5,9 +5,11 @@ node_modules
 dist
 build
 *.db
+!backend/data.db
 backend/.env
 .env.local
 .env.production
 .env.staging
 .env.input
 .env.arraayah
+.env.development

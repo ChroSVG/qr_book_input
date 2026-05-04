@@ -7,9 +7,9 @@ import { listItems, createItem, updateItem, deleteItem, getItemByQr } from "../l
 
 /**
  * Hook for fetching paginated, searchable item list.
- * Auto-refetches when page, limit, or search changes.
+ * Auto-refetches when page, limit, search, or filters change.
  */
-export function useItems({ page = 1, limit = 10, q = "" } = {}) {
+export function useItems({ page = 1, limit = 10, q = "", lang, cls, year } = {}) {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -24,7 +24,7 @@ export function useItems({ page = 1, limit = 10, q = "" } = {}) {
     setLoading(true);
     setError(null);
     try {
-      const result = await listItems({ page, limit, q });
+      const result = await listItems({ page, limit, q, lang, cls, year });
       setItems(result.data || []);
       setTotal(result.total || 0);
       setTotalPages(result.total_pages || 1);
@@ -35,7 +35,7 @@ export function useItems({ page = 1, limit = 10, q = "" } = {}) {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, q]);
+  }, [page, limit, q, lang, cls, year]);
 
   useEffect(() => {
     fetch();

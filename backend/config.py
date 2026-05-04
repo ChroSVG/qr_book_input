@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # API Key Authentication
     api_key: str | None = Field(default=None, alias="API_KEY")
 
+    # JWT Authentication
+    jwt_secret: str | None = Field(default=None, alias="JWT_SECRET")
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "populate_by_name": True}
 
 

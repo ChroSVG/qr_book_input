@@ -39,10 +39,18 @@ async def list_items(
     page: int = 1,
     limit: int = 10,
     q: str | None = None,
+    lang: str | None = None,
+    cls: str | None = None,
+    year: int | None = None,
     svc: DataService = Depends(get_data_service),
 ):
-    """List items with pagination and optional search. Public endpoint."""
-    items, total = await svc.list_items(page=page, limit=limit, search=q)
+    """List items with pagination, search, and filters. Public endpoint."""
+    items, total = await svc.list_items(
+        page=page, limit=limit, search=q,
+        language_name=lang,
+        classification=cls,
+        publish_year=year,
+    )
     return DataListResponse(
         data=items,
         total=total,

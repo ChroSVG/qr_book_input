@@ -16,7 +16,7 @@ import uvicorn
 
 from config import settings
 from database import create_db_and_tables
-from routers import items_router, export_router, spa_router
+from routers import items_router, export_router, spa_router, auth_router, downloads_router
 from error_handlers import register_error_handlers
 from auth import API_KEY
 
@@ -48,6 +48,8 @@ def create_app() -> FastAPI:
     )
 
     # ── Routes ─────────────────────────────────────────────────────────
+    app.include_router(auth_router)
+    app.include_router(downloads_router)
     app.include_router(items_router)
     app.include_router(export_router)
 

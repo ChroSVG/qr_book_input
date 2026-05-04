@@ -47,7 +47,6 @@ export default function FormFields({ form, setForm, handleFieldBlur }) {
           <label className="block text-xs font-medium text-gray-500 mb-1">Year</label>
           <HistoryInput
             id="yamli-item-publish_year"
-            type="number"
             value={form.publish_year}
             onChange={(e) => setForm({ ...form, publish_year: e.target.value })}
             onBlur={handleFieldBlur("publish_year")}
